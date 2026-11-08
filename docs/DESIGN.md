@@ -78,13 +78,47 @@ actions (play/pause, like, tab switch, success/error).
 RenderNode blur via `BlurTargetView`), `inline` variant (inside scroll views) uses a frosted fill on
 Android to avoid recursive blur.
 
+**Liquid Glass engine (Android)** — `mobile/modules/aura-liquid-glass`, our own GPU lens.
+
+![Liquid Glass (top) vs Frosted (bottom), shader simulated on a screenshot](screenshots/liquid-glass-lens.png)
+
+The page is already recorded into a `RenderNode` by expo-blur's `BlurTarget` (a display list, not
+pixels). Each glass view re-records one tiny display list that draws that node shifted under itself
+and lets RenderThread apply `RenderEffect.blur → AGSL RuntimeShader`. The shader computes the rounded
+rectangle's signed distance field, bends the backdrop along a circular lens profile near the rim
+(refraction), shifts R/G/B by slightly different amounts (dispersion), and adds a key + fill specular
+rim — the iOS 26 look — then the result is clipped by an anti-aliased outline. It only redraws when
+the page under it changed (`BlurTarget.isDirty`) or the glass moved (pre-draw position check): no
+bitmaps, no software capture, no per-frame allocations.
+
+| Android | What you get |
+|---|---|
+| 13+ (API 33) | Blur + refraction + dispersion + specular rim (full Liquid Glass) |
+| 12 (API 31–32) | GPU blur through the same pipeline |
+| ≤ 11 | Frosted fill (JS) |
+
+Glass over the open full player and glass inside scrolling content (`variant="inline"`) stay frosted:
+they'd have to sample content they're part of.
+
+*Why not a library?* We evaluated the React Native options (Nov 2026):
+[react-native-liquid-glassmorphism](https://github.com/himanshu-lal4/react-native-liquid-glassmorphism)
+captures the view tree with a software `rootView.draw()` per glass view per frame (expensive with a
+dock + mini player + sheets on screen);
+[react-native-android-liquid-glass](https://github.com/sssajjad007/react-native-liquid-glass-android)
+(QWEA0) only refracts siblings under the same parent and targets RN 0.85;
+[@uginy/react-native-liquid-glass](https://github.com/uginy/react-native-liquid-glass) is API 33+ only
+with no fallback. Kyant's [AndroidLiquidGlass / Backdrop](https://github.com/Kyant0/AndroidLiquidGlass)
+is excellent but Jetpack Compose only. Reusing the display list expo-blur already records gives the
+same optics with the lowest cost.
+
 **Glass material dial** (Settings → Look & feel → Glass) — one continuous slider from **Liquid Glass**
 (0) through **Frosted** (0.5) to **Opaque** (1), with soft magnetic detents and a haptic tick at each.
 `lib/glassMaterial.ts → material(level)` turns the level into every layer's strength:
 
 | Layer | Liquid Glass → Frosted → Opaque |
 |---|---|
-| Material tint (`glassBase`) | 36 % → ~58 % → 100 % opaque (≥ 86 % where Android can't blur) |
+| Material tint (`glassBase`) | 8 % with the native lens (36 % with plain blur) → ~58 % → 100 % opaque (≥ 86 % where Android can't blur) |
+| Native lens (`lens(level)`) | blur 1.5 → ~18 dp, refraction 1 → ~0.4 → 0, dispersion 0.45 → 0, specular 1 → 0.3 |
 | Blur intensity | ×0.85 → ×1.75 (frosted blurs more), unmounted from 97 % up |
 | Top sheen, top lip | full → faint → off |
 | Bottom refraction glow | full → off by ~45 % (the "liquid" cue) |

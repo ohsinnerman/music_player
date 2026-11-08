@@ -5,8 +5,9 @@
 Expo SDK 58 · React Native 0.88 (New Architecture, Hermes) · Expo Router (file-based routes in
 `src/app`) · Reanimated 4 + react-native-worklets · Gesture Handler 3 (hook API) · Skia 2 ·
 expo-audio (ExoPlayer) · expo-file-system (SAF file/folder access) · expo-blur · expo-image · FlashList 2 · TanStack Query 5 · Zustand 5 ·
-SecureStore · Plus Jakarta Sans + Instrument Serif · lucide icons. One local native module:
-`modules/aura-audio-route` (Kotlin, audio output info — see [AUDIO_QUALITY.md](AUDIO_QUALITY.md)).
+SecureStore · Plus Jakarta Sans + Instrument Serif · lucide icons. Two local native modules (Kotlin, autolinked from `modules/`): `aura-audio-route` (audio output info —
+see [AUDIO_QUALITY.md](AUDIO_QUALITY.md)) and `aura-liquid-glass` (GPU Liquid Glass lens — see
+[DESIGN.md](DESIGN.md#signature-components)).
 
 ## Navigation
 
@@ -56,7 +57,9 @@ Their likes stay on the device and they're kept out of server-synced playlists. 
 
 `lib/glass.ts` exposes `glassLevel` (shared value, synced from `settings.glass` on launch and animated on
 changes) and the pure `material(level)` model in `lib/glassMaterial.ts` (unit-tested). `Glass` reads both;
-the slider (`components/settings/GlassSlider.tsx`) writes `glassLevel` directly while dragging.
+the slider (`components/settings/GlassSlider.tsx`) writes `glassLevel` directly while dragging. On
+Android 12+ `Glass` mounts the native `LiquidGlassNativeView` with `lens(level, intensity)` props
+(blur, refraction, dispersion, specular); tint/sheen/rim overlays stay in JS so they animate live.
 See [DESIGN.md → Glass material dial](DESIGN.md#signature-components).
 
 ## Theming

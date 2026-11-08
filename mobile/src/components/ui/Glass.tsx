@@ -4,10 +4,11 @@ import { type ReactNode, memo } from 'react';
 import { Platform, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useBlurTarget } from '@/lib/chrome';
-import { BLUR_OFF_AT, glassLevel, material } from '@/lib/glass';
+import { BLUR_OFF_AT, glassLevel, lens, material } from '@/lib/glass';
 import { usePlayerUi } from '@/player/ui';
 import { useSettings } from '@/settings/store';
 import { useColors } from '@/theme';
+import { LiquidGlassNativeView } from '../../../modules/aura-liquid-glass';
 
 export interface GlassProps {
   children?: ReactNode;
@@ -57,18 +58,32 @@ export const Glass = memo(function Glass({
   const playerOpen = usePlayerUi((s) => s.isOpen);
   const android = Platform.OS === 'android';
   const canBlur = !android || (variant === 'overlay' && !!target && !playerOpen);
+  // Android 12+: our GPU lens (blur → AGSL refraction/dispersion/specular on 13+) over the
+  // same recorded page content expo-blur uses. Otherwise expo-blur, else a frosted fill.
+  const nativeLens = android && !!LiquidGlassNativeView && canBlur && level < BLUR_OFF_AT;
   const realBlur = canBlur && level < BLUR_OFF_AT;
+  const optics = nativeLens ? lens(level, intensity) : null;
   const dark = colors.scheme === 'dark';
 
-  const tintStyle = useAnimatedStyle(() => ({ opacity: Math.max(minTint, material(glassLevel.value, realBlur).tint) }));
-  const sheenStyle = useAnimatedStyle(() => ({ opacity: material(glassLevel.value, realBlur).sheen }));
-  const glowStyle = useAnimatedStyle(() => ({ opacity: material(glassLevel.value, realBlur).glow }));
-  const rimStyle = useAnimatedStyle(() => ({ opacity: material(glassLevel.value, realBlur).rim }));
-  const lipStyle = useAnimatedStyle(() => ({ opacity: material(glassLevel.value, realBlur).lip }));
+  const tintStyle = useAnimatedStyle(() => ({ opacity: Math.max(minTint, material(glassLevel.value, realBlur, nativeLens).tint) }));
+  const sheenStyle = useAnimatedStyle(() => ({ opacity: material(glassLevel.value, realBlur, nativeLens).sheen }));
+  const glowStyle = useAnimatedStyle(() => ({ opacity: material(glassLevel.value, realBlur, nativeLens).glow }));
+  const rimStyle = useAnimatedStyle(() => ({ opacity: material(glassLevel.value, realBlur, nativeLens).rim }));
+  const lipStyle = useAnimatedStyle(() => ({ opacity: material(glassLevel.value, realBlur, nativeLens).lip }));
 
   return (
     <View pointerEvents={pointerEvents} style={[{ borderRadius: radius, overflow: 'hidden' }, style]}>
-      {realBlur ? (
+      {nativeLens && LiquidGlassNativeView && optics ? (
+        <LiquidGlassNativeView
+          pointerEvents="none"
+          style={StyleSheet.absoluteFill}
+          cornerRadius={radius}
+          blur={optics.blur}
+          refraction={optics.refraction}
+          dispersion={optics.dispersion}
+          specular={optics.specular}
+        />
+      ) : realBlur ? (
         <BlurView
           style={StyleSheet.absoluteFill}
           intensity={Math.min(100, Math.round(intensity * material(level, true).blur))}

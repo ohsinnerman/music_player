@@ -140,6 +140,7 @@ mobile/
   app.config.ts            Build-time config (API URL, cleartext, permissions, plugins)
   plugins/                 withReleaseSigning config plugin
   modules/aura-audio-route Local Expo module (Kotlin): output device + mixer rate for the signal path
+  modules/aura-liquid-glass Local Expo module (Kotlin + AGSL): GPU Liquid Glass lens over the page
   src/
     app/                   Routes (Expo Router): tabs, player-less detail pages, auth, settings
     api/                   types, fetch client, endpoints, query hooks

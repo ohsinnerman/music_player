@@ -1,0 +1,17 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'expo.modules.auraliquidglass'
+version = '1.0.0'
+
+android {
+  namespace "expo.modules.auraliquidglass"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+    // Keeps the blur target's RenderNode field readable after R8 in release builds.
+    consumerProguardFiles 'proguard-rules.pro'
+  }
+}

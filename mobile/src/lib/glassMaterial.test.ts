@@ -36,3 +36,21 @@ describe('glass material', () => {
     expect([stageOf(0), stageOf(0.5), stageOf(0.9)]).toEqual(['liquid', 'frosted', 'opaque']);
   });
 });
+
+describe('native lens', () => {
+  it('Liquid Glass is clear and strongly refracting; Frosted is blurry and gentle', async () => {
+    const { lens } = await import('./glassMaterial');
+    const liquid = lens(0);
+    const frosted = lens(0.5);
+    expect(liquid.blur).toBeLessThan(2);
+    expect(liquid.refraction).toBe(1);
+    expect(liquid.dispersion).toBeGreaterThan(0.4);
+    expect(frosted.blur).toBeGreaterThan(10);
+    expect(frosted.refraction).toBeLessThan(0.6);
+    expect(lens(0, 70).blur).toBeGreaterThan(lens(0, 45).blur);
+  });
+  it('lensed tint is nearly clear at Liquid Glass and solid at Opaque', () => {
+    expect(material(0, true, true).tint).toBeLessThan(0.1);
+    expect(material(1, true, true).tint).toBe(1);
+  });
+});

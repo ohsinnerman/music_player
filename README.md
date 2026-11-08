@@ -25,7 +25,7 @@ living artwork and spring physics.
 
 ## Highlights
 
-- **Liquid-glass chrome, your way** — a Settings slider sweeps every glass surface from clear Liquid Glass through Frosted to Opaque, live under your finger, with a real-blur preview.
+- **Real Liquid Glass on Android** — our own GPU lens (RenderNode + AGSL shader): edge refraction, chromatic dispersion and specular rims like iOS 26, redrawn only when the page under it changes. A Settings slider sweeps every glass surface from clear Liquid Glass through Frosted to Opaque, live under your finger.
 - **Floating glass dock** — floating tab dock with a sliding glass lens that shrinks to a single circle as you scroll (iOS 26 style), a glass mini player that **morphs** into the full player with a shared-element cover.
 - **Living artwork** — the player background is the cover, blurred and slowly orbiting (Skia, rendered at ⅕ resolution for ~4% of the GPU cost), tinted by a palette extracted on-device.
 - **Synced lyrics** — LRCLIB lyrics that follow the song line by line, tap any line to jump there.

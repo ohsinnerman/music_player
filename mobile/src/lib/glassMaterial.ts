@@ -46,17 +46,49 @@ export interface Material {
  * blur this surface (Android inline glass, or over the full player): the tint
  * then has to carry legibility on its own.
  */
-export function material(level: number, realBlur: boolean): Material {
+export function material(level: number, realBlur: boolean, lensed = false): Material {
   'worklet';
   const g = clamp01(level);
-  const tint = realBlur ? 0.36 + 0.64 * Math.pow(g, 1.6) : 0.86 + 0.14 * g;
+  // With the native lens (Android 13+ AGSL / real glass), Liquid Glass is genuinely clear:
+  // the refraction and specular rim do the work, so the tint can almost vanish.
+  const tint = lensed ? 0.08 + 0.92 * Math.pow(g, 1.7) : realBlur ? 0.36 + 0.64 * Math.pow(g, 1.6) : 0.86 + 0.14 * g;
+  const sheen = Math.min(1, 1.2 * Math.pow(1 - g, 1.4));
   return {
     tint,
     blur: 0.85 + 0.9 * smooth(0, 0.6, g),
-    sheen: Math.min(1, 1.2 * Math.pow(1 - g, 1.4)),
+    // The shader already lights the rim; keep the drawn sheen subtler so it doesn't double up.
+    sheen: lensed ? sheen * 0.55 : sheen,
     rim: 1 - 0.55 * g,
     lip: Math.pow(1 - g, 1.2),
-    glow: 1 - smooth(0, 0.45, g),
+    glow: lensed ? 0.6 * (1 - smooth(0, 0.45, g)) : 1 - smooth(0, 0.45, g),
+  };
+}
+
+export interface Lens {
+  /** Backdrop blur in dp. */
+  blur: number;
+  /** Edge refraction 0–1. */
+  refraction: number;
+  /** Chromatic split 0–1. */
+  dispersion: number;
+  /** Specular rim 0–1. */
+  specular: number;
+}
+
+/**
+ * Parameters for the native lens at a level. Liquid Glass: barely blurred, strong
+ * bending, colour fringing and bright rims (iOS 26 "clear"). Frosted: heavy blur,
+ * gentle bending. `intensity` is the surface's own blur weight (dock 45, sheet 70…).
+ */
+export function lens(level: number, intensity = 45): Lens {
+  'worklet';
+  const g = clamp01(level);
+  const weight = Math.min(1.6, Math.max(0.5, intensity / 45));
+  return {
+    blur: Math.round((1.5 + 22 * smooth(0, 0.75, g)) * weight * 10) / 10,
+    refraction: Math.round((1 - smooth(0.05, 0.85, g)) * 100) / 100,
+    dispersion: Math.round(0.45 * (1 - smooth(0, 0.4, g)) * 100) / 100,
+    specular: Math.round((1 - 0.7 * smooth(0, 0.8, g)) * 100) / 100,
   };
 }
 
