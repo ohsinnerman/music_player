@@ -59,7 +59,10 @@ export default function ArtistScreen() {
   });
   const heroStyle = useAnimatedStyle(() => {
     const y = scrollY.value;
-    return { transform: [{ translateY: y < 0 ? y : y * 0.45 }, { scale: y < 0 ? 1 + -y / HERO : 1 }] };
+    return {
+      transform: [{ translateY: y < 0 ? y : -y * 0.35 }, { scale: y < 0 ? 1 + -y / HERO : 1 }],
+      opacity: interpolate(y, [0, HERO * 0.8], [1, 0.2], 'clamp'),
+    };
   });
   const nameStyle = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [0, HERO * 0.5], [1, 0], 'clamp') }));
 
@@ -98,6 +101,7 @@ export default function ArtistScreen() {
           ) : null}
         </Animated.View>
 
+        <View style={styles.body}>
         <View style={styles.actions}>
           <PressableScale
             onPress={async () => {
@@ -155,6 +159,7 @@ export default function ArtistScreen() {
             </Text>
           </View>
         ) : null}
+        </View>
       </Animated.ScrollView>
 
       <TopBar scrollY={scrollY} title={data?.name ?? ''} threshold={HERO - 140} />
@@ -165,7 +170,8 @@ export default function ArtistScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   hero: { position: 'absolute', left: 0, right: 0, top: 0, backgroundColor: colors.surface },
-  nameBlock: { paddingHorizontal: GUTTER, gap: 4 },
+  nameBlock: { paddingHorizontal: GUTTER, gap: 4, paddingBottom: 6 },
+  body: { backgroundColor: colors.bg, minHeight: 600 },
   verified: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   name: { fontSize: 44, lineHeight: 48, letterSpacing: -1.6 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: GUTTER, marginTop: 18 },

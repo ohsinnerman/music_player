@@ -1,0 +1,28 @@
+# Render Blueprint: deploys the Aura API from backend/.
+# Dashboard → New → Blueprint → select this repo.
+services:
+  - type: web
+    name: aura-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    region: singapore
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /v1/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: '22'
+      - key: TRUST_PROXY
+        value: '1'
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGODB_URI
+        sync: false
+      - key: CATALOG_PROVIDERS
+        value: audius,deezer
+      - key: ALLOW_REGISTRATION
+        value: 'true'

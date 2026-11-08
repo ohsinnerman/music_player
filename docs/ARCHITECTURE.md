@@ -1,0 +1,130 @@
+# Architecture
+
+## System overview
+
+```
+┌──────────────────────────── Android phone ────────────────────────────┐
+│  Aura app (React Native, Hermes, New Architecture)                    │
+│                                                                       │
+│  Screens (Expo Router) ──► TanStack Query ──► api/client.ts ───────┐  │
+│        │                                     (JWT, refresh, timeouts)│ │
+│        ▼                                                            │  │
+│  Zustand stores: player · library · settings · auth                 │  │
+│        │                                                            │  │
+│        ▼                                                            │  │
+│  player/engine.ts ──► expo-audio AudioPlaylist (ExoPlayer) ─────────┤  │
+│                       background service + media notification       │  │
+│  SecureStore (Android Keystore): refresh token                      │  │
+└─────────────────────────────────────────────────────────────────────┼──┘
+                                                         HTTPS        │
+┌───────────────────────── Aura API (backend/) ────────────────────────▼─┐
+│ Express 5: helmet · CORS allow-list · rate limits · zod validation     │
+│                                                                        │
+│  /v1/auth/*  ──► security/tokens.ts (JWT + rotating refresh tokens)    │
+│  /v1/me/*    ──► store (MongoDB | memory): users, likes, playlists…    │
+│  /v1/browse, /search, /tracks, /albums, /artists, /playlists           │
+│              ──► services/catalog.ts ──► providers/{audius,deezer,…}   │
+│  /v1/lyrics  ──► services/lyrics.ts ──► LRCLIB                         │
+│  /v1/tracks/:id/play ──► 302 to a freshly-resolved stream URL          │
+│                                                                        │
+│  lib/http.ts: allow-listed hosts only, timeouts, 1 retry               │
+│  lib/cache.ts: LRU + TTL + request coalescing                          │
+└───────────┬───────────────┬────────────────┬───────────────┬───────────┘
+            ▼               ▼                ▼               ▼
+        Audius API      Deezer API      Jamendo API      LRCLIB API
+     (full streams)   (30s previews)   (optional, CC)    (lyrics)
+```
+
+The app never talks to a music provider directly. It only knows the Aura API and a normalised
+data model (`Track`, `Album`, `Artist`, `Playlist`, `Section`…), defined once in
+`backend/src/domain/types.ts` and mirrored in `mobile/src/api/types.ts`.
+
+## Why a backend at all?
+
+- **Secrets stay off the phone.** Provider API keys live on the server.
+- **One model, many sources.** Providers can be swapped or added without an app update.
+- **Fresh stream URLs.** Signed provider URLs expire; the `/play` endpoint resolves a new one each time.
+- **Accounts & sync.** Likes, playlists and history follow the user across devices.
+- **Caching & rate-limit shielding** in front of free public APIs.
+
+## Request flows
+
+### Browsing
+
+```
+Home screen → useHome() → GET /v1/browse/home
+   catalog.home(): Promise.allSettled(every provider.homeSections())
+   → merge in a curated order, insert genres, cache 5 min
+   → one failing provider never breaks the page (its sections are skipped)
+```
+
+### Playing a song
+
+```
+tap row → player.playQueue(tracks, index, context)
+   → native AudioPlaylist.clear(); add({ uri: <API>/v1/tracks/<id>/play }) × N; skipTo(index); play()
+   → ExoPlayer requests /play → server resolves a fresh stream → 302 → audio bytes from the CDN
+   → status events (250 ms) → zustand + UI-thread clock → scrubber, lyrics, mini player
+```
+
+Because each queue entry is a *stable* URL that redirects at play time, the native queue can hold
+200 tracks without any of them going stale, and lock-screen next/previous work with the app in the
+background.
+
+### Signing in
+
+```
+POST /v1/auth/login → { accessToken (15 min JWT), refreshToken (opaque, 30 days) }
+   app: access token in memory only; refresh token in Android Keystore (SecureStore)
+   any 401 → single-flight POST /v1/auth/refresh (rotates the refresh token) → retry once
+   replayed (old) refresh token → server revokes the whole session family
+```
+
+## The player engine (mobile/src/player)
+
+| File | Role |
+|---|---|
+| `engine.ts` | All playback commands. Owns the native `AudioPlaylist`, keeps it 1:1 with the queue, handles shuffle/repeat, lock-screen metadata, persistence and history. |
+| `store.ts` | `usePlayer` (queue, index, flags) and `clock` — Reanimated shared values updated by native status and interpolated every frame by `<PlaybackClock/>`. |
+| `ui.ts` | Player sheet state (open, lyrics/queue panel). |
+
+Shuffle never interrupts the current song: the engine removes everything around it and rebuilds the
+queue in place. The last session (queue, position, modes) is restored on launch, paused.
+
+## Folder layout
+
+```
+backend/
+  src/
+    app.ts                 Express app factory (dependency-injected, used by tests)
+    index.ts / vercel.ts   Long-running server / serverless entry
+    config/env.ts          Validated configuration, production guards
+    domain/types.ts        The API contract
+    http/                  routes + middleware (auth, validation, limits, errors)
+    providers/             audius, deezer, jamendo, registry
+    services/              catalog (merge/rank/cache), lyrics (LRCLIB + LRC parser), genres
+    security/              password (argon2id), tokens (JWT + refresh rotation)
+    store/                 Store interface, memory + Mongo implementations
+    lib/                   http client (SSRF guard), cache, errors, ids, logger
+  test/                    Vitest + supertest suites
+  scripts/demo.ts          Offline demo server (dev only)
+
+mobile/
+  app.config.ts            Build-time config (API URL, cleartext, permissions, plugins)
+  plugins/                 withReleaseSigning config plugin
+  src/
+    app/                   Routes (Expo Router): tabs, player-less detail pages, auth, settings
+    api/                   types, fetch client, endpoints, query hooks
+    auth/                  auth store, secure token storage
+    player/                engine, stores, sheet UI state
+    library/               guest library store + unified hooks (local ⇄ server)
+    settings/              persisted settings, server URL validation
+    components/
+      ui/                  Glass, Text, PressableScale, Sheet, Toast, TextField, TopBar…
+      music/               TrackRow, MediaCard, HeroCarousel, Shelves, CollectionScreen…
+      player/              PlayerSheet, LivingBackground, Scrubber, Controls, LyricsView, QueueView
+      dock/                GlassDock + shared geometry
+      sheets/              Track actions, playlist picker, create playlist
+    lib/                   palette extraction, chrome (shared animation state), format, nav, haptics
+    theme/                 tokens, typography, motion
+```

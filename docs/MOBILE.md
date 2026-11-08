@@ -1,0 +1,85 @@
+# Mobile app internals
+
+## Stack
+
+Expo SDK 58 · React Native 0.88 (New Architecture, Hermes) · Expo Router (file-based routes in
+`src/app`) · Reanimated 4 + react-native-worklets · Gesture Handler 3 (hook API) · Skia 2 ·
+expo-audio (ExoPlayer) · expo-blur · expo-image · FlashList 2 · TanStack Query 5 · Zustand 5 ·
+SecureStore · Plus Jakarta Sans + Instrument Serif · lucide icons.
+
+## Navigation
+
+```
+src/app/_layout.tsx        Root: fonts, providers, BlurTargetView, Stack, + global overlays
+  (tabs)/_layout.tsx       Tabs (index · explore · library) with the native tab bar hidden
+  album/[id] artist/[id] playlist/[id] my-playlist/[id] genre/[id] liked
+  search  settings  auth  onboarding
+```
+
+The visible tab bar is `<GlassDock/>`, rendered in the root layout *above* the navigator, so it floats
+over detail pages too and its blur samples whatever is underneath. `<PlayerSheet/>`, `<SheetHost/>`
+and `<ToastHost/>` are siblings on top. Tapping a tab from a detail page pops back to the tabs first
+(`lib/nav.ts → goTab`).
+
+On Android, `expo-blur` needs a `BlurTargetView` wrapping the content to blur; it wraps the whole
+Stack and its ref is shared through `ChromeProvider`.
+
+## State
+
+| Store | Persisted | Holds |
+|---|---|---|
+| `settings/store.ts` | AsyncStorage | server URL, onboarded, haptics, reduce transparency, living background, recent searches |
+| `auth/store.ts` | refresh token in SecureStore | status (`loading`/`guest`/`authed`), user |
+| `player/store.ts` | queue snapshot in AsyncStorage | queue, index, context, repeat, shuffle, playing/buffering; `clock` shared values |
+| `library/store.ts` | AsyncStorage | guest likes, playlists, local history |
+| TanStack Query | memory | all server data (home, search, albums, `me/*`) |
+
+### Library: guest ⇄ account
+
+`library/hooks.ts` exposes one API (`useLikedTracks`, `toggleLike`, `usePlaylists`,
+`createPlaylist`, `addToPlaylist`, …). Signed out, it reads/writes the device store; signed in, it
+uses the server with optimistic updates. On sign-in, guest likes and playlists are uploaded and the
+local copy cleared. History is always mirrored locally so "Recently played" is instant.
+
+## Playback
+
+See [ARCHITECTURE.md → The player engine](ARCHITECTURE.md#the-player-engine-mobilesrcplayer).
+
+- Background playback and the media notification come from expo-audio's foreground service
+  (`enableBackgroundPlayback`) and `setActiveForLockScreen(…, { showNextTrack, showPreviousTrack })`.
+- Audio session: `doNotMix` (other apps pause), plays in silent mode, continues in background.
+- Android 13+: notification permission is requested on first play (needed to show controls).
+- Previous: restarts the song if >3 s in, otherwise goes back.
+- Errors (unplayable stream) show a toast and skip to the next song once.
+- Last session restores paused at the saved position.
+
+## Performance notes
+
+- All animation (dock, player morph, scrubber, lyrics highlighting, tab lens) runs on the UI thread
+  via shared values; React re-renders only when the track or play state changes.
+- The playback clock is interpolated every frame from 250 ms native updates (`PlaybackClock`).
+- Scrubber times use an animated `TextInput` (`ReText`) — no re-renders while playing.
+- Lists: FlatList with tuned windows for shelves, FlashList for the queue; rows are memoised and
+  subscribe to the player store with narrow selectors.
+- Images: expo-image with memory+disk cache, recycling keys, sized sources (150/500/1000 px).
+- Living background renders at 1/25th of the pixels and only while the player is open.
+- Heavy panels (lyrics) mount a frame after the panel animation starts.
+- Fonts: only the five weights used are bundled.
+
+## Configuration
+
+Build-time (`app.config.ts`):
+
+| Env | Effect |
+|---|---|
+| `EXPO_PUBLIC_API_URL` | Default server URL baked into the build |
+| `AURA_ALLOW_CLEARTEXT=true` | Allow `http://` (sets `usesCleartextTraffic`); LAN testing only |
+
+Runtime: **Settings → Server** overrides the baked URL (validated with a live `/v1/config` check).
+
+## Adding a screen
+
+1. Create `src/app/<name>.tsx` (or a folder with `[param].tsx`).
+2. Use `useDockGeometry().contentInset` as bottom padding so content clears the dock.
+3. For collection-style pages reuse `CollectionScreen`.
+4. Pass `dockScrollWorklet` in your scroll handler if the dock should minimise on scroll.

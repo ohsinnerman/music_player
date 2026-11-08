@@ -225,7 +225,7 @@ export default function Settings() {
         </Text>
         <IconButton icon={X} label="Close" background="rgba(255,255,255,0.08)" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
       </View>
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 120 }} keyboardShouldPersistTaps="handled">
         <View style={styles.profile}>
           <View style={styles.avatar}>
             {user ? (
