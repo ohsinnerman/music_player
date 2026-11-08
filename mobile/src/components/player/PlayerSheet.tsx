@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePathname } from 'expo-router';
-import { ChevronDown, Ellipsis, Heart, ListMusic, MicVocal, SkipForward } from 'lucide-react-native';
+import { ChevronDown, Ellipsis, Heart, ListMusic, MicVocal, MoonStar, SkipForward } from 'lucide-react-native';
 import { memo, useEffect, useState } from 'react';
 import { BackHandler, StyleSheet, View } from 'react-native';
 import { GestureDetector, useCompetingGestures, usePanGesture, useTapGesture } from 'react-native-gesture-handler';
@@ -28,6 +28,7 @@ import { useSettings } from '@/settings/store';
 import { colors, GUTTER, spring } from '@/theme';
 import { useDockGeometry } from '../dock/geometry';
 import { PreviewBadge } from '../music/Badges';
+import { openSleepTimer } from '../sheets/SleepTimer';
 import { openTrackActions } from '../sheets/TrackActions';
 import { Glass } from '../ui/Glass';
 import { IconButton } from '../ui/IconButton';
@@ -102,6 +103,7 @@ export function PlayerSheet() {
   const track = useCurrentTrack();
   const isPlaying = usePlayer((s) => s.isPlaying);
   const context = usePlayer((s) => s.context);
+  const sleepAt = usePlayer((s) => s.sleepAt);
   const { panel, setPanel, isOpen, setOpen } = usePlayerUi();
   const living = useSettings((s) => s.livingBackground && !s.reduceTransparency);
   const path = usePathname();
@@ -364,7 +366,12 @@ export function PlayerSheet() {
                     {context?.title ?? track.album?.title ?? 'Your queue'}
                   </Text>
                 </View>
-                <IconButton icon={Ellipsis} label="More options" iconSize={24} onPress={() => openTrackActions(track)} />
+                <IconButton
+                  icon={Ellipsis}
+                  label="More options"
+                  iconSize={24}
+                  onPress={() => openTrackActions(track, [{ label: sleepAt !== null ? 'Sleep timer (on)' : 'Sleep timer', icon: MoonStar, onPress: openSleepTimer }])}
+                />
               </View>
 
               {/* Big title block (artwork mode) */}

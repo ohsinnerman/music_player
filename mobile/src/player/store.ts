@@ -14,6 +14,8 @@ export interface PlayerState {
   isBuffering: boolean;
   repeat: RepeatMode;
   shuffle: boolean;
+  /** Sleep timer: epoch ms to pause at, -1 = end of current song, null = off. */
+  sleepAt: number | null;
 }
 
 export const usePlayer = create<PlayerState>()(() => ({
@@ -25,6 +27,7 @@ export const usePlayer = create<PlayerState>()(() => ({
   isBuffering: false,
   repeat: 'off',
   shuffle: false,
+  sleepAt: null,
 }));
 
 export const useCurrentTrack = (): Track | undefined => usePlayer((s) => s.queue[s.index]);

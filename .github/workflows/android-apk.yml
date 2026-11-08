@@ -50,12 +50,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Add swap (native C++ builds are memory hungry)
+      - name: Free disk space and add swap
         working-directory: .
         run: |
-          sudo swapoff -a || true
-          sudo fallocate -l 8G /swapfile_aura && sudo chmod 600 /swapfile_aura
-          sudo mkswap /swapfile_aura && sudo swapon /swapfile_aura
+          df -h /
+          # The runner image ships ~30 GB of toolchains we don't use; native RN builds need the room.
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/powershell /usr/share/swift /usr/local/julia* || true
+          sudo docker image prune --all --force > /dev/null 2>&1 || true
+          # Swap on the separate temp disk when present, so it doesn't eat the build disk.
+          SWAP=/swapfile_aura
+          if mountpoint -q /mnt; then SWAP=/mnt/swapfile_aura; fi
+          sudo fallocate -l 6G "$SWAP" && sudo chmod 600 "$SWAP" && sudo mkswap "$SWAP" && sudo swapon "$SWAP" || true
+          df -h /
           free -h
 
       - uses: actions/setup-node@v4

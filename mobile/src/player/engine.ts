@@ -66,6 +66,12 @@ function onIndex(index: number) {
   const t = s.queue[index]!;
   // Status events arrive ~4×/s; only react when the track actually changed.
   if (lastMetaId === t.id) return;
+  if (sleepAtEndOfTrack && lastMetaId !== null) {
+    sleepAtEndOfTrack = false;
+    pl?.pause();
+    usePlayer.setState({ sleepAt: null });
+    toast('Sleep timer: paused', 'info');
+  }
   lastMetaId = t.id;
   if (lockScreenActive) pl?.updateLockScreenMetadata(metadata(t));
   if (lastRecorded !== t.id) {
@@ -361,6 +367,26 @@ export const player = {
     }
   },
 };
+
+/* ───────────────────────── Sleep timer ───────────────────────── */
+
+let sleepTimer: ReturnType<typeof setTimeout> | null = null;
+let sleepAtEndOfTrack = false;
+
+/** Pause after `minutes`, at the end of the current song ('track'), or cancel (null). */
+export function setSleepTimer(value: number | 'track' | null) {
+  if (sleepTimer) clearTimeout(sleepTimer);
+  sleepTimer = null;
+  sleepAtEndOfTrack = value === 'track';
+  usePlayer.setState({ sleepAt: typeof value === 'number' ? Date.now() + value * 60_000 : value === 'track' ? -1 : null });
+  if (typeof value === 'number') {
+    sleepTimer = setTimeout(() => {
+      player.pause();
+      usePlayer.setState({ sleepAt: null });
+      toast('Sleep timer: paused', 'info');
+    }, value * 60_000);
+  }
+}
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 function persistSoon() {
