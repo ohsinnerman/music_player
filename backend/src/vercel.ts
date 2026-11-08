@@ -10,6 +10,9 @@ import { loadEnv } from './config/env.js';
  * function: they're logged and returned as a clear JSON error, and the
  * database connection is retried on the next request.
  */
+// Deployed on Vercel = production, unless explicitly overridden.
+process.env.NODE_ENV ??= 'production';
+
 let built: BuiltApp | null = null;
 let configError: string | null = null;
 let ready: Promise<void> | null = null;
