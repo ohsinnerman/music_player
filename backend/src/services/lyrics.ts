@@ -55,6 +55,26 @@ export function cleanTitle(title: string): string {
     .trim();
 }
 
+export type { LrcLibRecord };
+
+function pickBest(results: LrcLibRecord[], durationSec: number | undefined, maxDelta: number): LrcLibRecord | null {
+  const scored = results
+    .filter((r) => r.syncedLyrics || r.plainLyrics || r.instrumental)
+    .map((r) => {
+      const dd = durationSec && r.duration ? Math.abs(r.duration - durationSec) : 0;
+      return { r, dd, score: (r.syncedLyrics ? 0 : 50) + Math.min(dd, 60) };
+    })
+    .sort((a, b) => a.score - b.score);
+  const best = scored[0];
+  if (!best) return null;
+  if (durationSec && best.r.duration && best.dd > maxDelta) {
+    // The synced one may be off; accept the closest-duration one if it fits.
+    const close = scored.filter((s) => s.dd <= maxDelta).sort((a, b) => a.dd - b.dd)[0];
+    return close ? close.r : null;
+  }
+  return best.r;
+}
+
 export function createLyricsService(http: HttpClient, base: string, cache: TtlCache) {
   const root = base.replace(/\/$/, '');
 
@@ -69,38 +89,57 @@ export function createLyricsService(http: HttpClient, base: string, cache: TtlCa
     };
   };
 
-  async function lookup(q: { title: string; artist: string; album?: string; durationSec?: number }, trackId?: string): Promise<Lyrics> {
+  type Query = { title: string; artist: string; album?: string; durationSec?: number };
+  type Found = { lyrics: Lyrics; record: LrcLibRecord };
+
+  /** Best LRCLIB record for a title + artist, or null. Never throws "not found". */
+  async function find(q: Query, trackId?: string): Promise<Found | null> {
     const title = cleanTitle(q.title);
-    const key = `lyrics:${q.artist.toLowerCase()}|${title.toLowerCase()}|${q.durationSec ?? ''}`;
-    return cache.wrap(key, 24 * 60 * 60_000, async () => {
+    if (!title || !q.artist.trim()) return null;
+    const key = `lrc:${q.artist.toLowerCase()}|${title.toLowerCase()}|${q.album?.toLowerCase() ?? ''}|${q.durationSec ?? ''}`;
+    const rec = await cache.wrap(key, 24 * 60 * 60_000, async (): Promise<LrcLibRecord | null> => {
       // 1) Exact signature match (fast, cached on LRCLIB's side).
       try {
-        const rec = await http.json<LrcLibRecord>(
+        const r = await http.json<LrcLibRecord>(
           `${root}/get${qs({ track_name: title, artist_name: q.artist, album_name: q.album, duration: q.durationSec })}`,
         );
-        if (rec && (rec.syncedLyrics || rec.plainLyrics || rec.instrumental)) return toLyrics(rec, trackId);
+        if (r && (r.syncedLyrics || r.plainLyrics || r.instrumental)) return r;
       } catch (e) {
         if (!(e instanceof AppError && e.status === 404)) throw e;
       }
       // 2) Fuzzy search, prefer synced lyrics with a close duration.
       const results = await http.json<LrcLibRecord[]>(`${root}/search${qs({ track_name: title, artist_name: q.artist })}`);
-      const scored = (results ?? [])
-        .filter((r) => r.syncedLyrics || r.plainLyrics)
-        .map((r) => {
-          const dd = q.durationSec && r.duration ? Math.abs(r.duration - q.durationSec) : 0;
-          return { r, score: (r.syncedLyrics ? 0 : 50) + Math.min(dd, 60) };
-        })
-        .sort((a, b) => a.score - b.score);
-      const best = scored[0];
-      if (!best || (q.durationSec && best.r.duration && Math.abs(best.r.duration - q.durationSec) > 15)) {
-        throw notFound('No lyrics found for this song');
-      }
-      return toLyrics(best.r, trackId);
+      return pickBest(results ?? [], q.durationSec, 15);
     });
+    return rec ? { lyrics: toLyrics(rec, trackId), record: rec } : null;
+  }
+
+  /** Free-text LRCLIB search ("artist title" or a cleaned file name). */
+  async function search(text: string, durationSec?: number): Promise<Found | null> {
+    const q = text.trim().slice(0, 200);
+    if (q.length < 3) return null;
+    const key = `lrcq:${q.toLowerCase()}|${durationSec ?? ''}`;
+    const rec = await cache.wrap(key, 24 * 60 * 60_000, async () => {
+      const results = await http.json<LrcLibRecord[]>(`${root}/search${qs({ q })}`).catch((e: unknown) => {
+        if (e instanceof AppError && e.status === 404) return [] as LrcLibRecord[];
+        throw e;
+      });
+      // Without an artist to anchor on, insist on a tight duration match.
+      return durationSec ? pickBest(results ?? [], durationSec, 3) : null;
+    });
+    return rec ? { lyrics: toLyrics(rec), record: rec } : null;
+  }
+
+  async function lookup(q: Query, trackId?: string): Promise<Lyrics> {
+    const found = await find(q, trackId);
+    if (!found) throw notFound('No lyrics found for this song');
+    return found.lyrics;
   }
 
   return {
     lookup,
+    find,
+    search,
     forTrack: (t: Track) =>
       lookup(
         {

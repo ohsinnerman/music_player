@@ -135,3 +135,29 @@ export interface Lyrics {
   instrumental: boolean;
   source: 'lrclib';
 }
+
+/* ───────────── Identify (songs imported from the user's device) ───────────── */
+
+/** Where an identification came from, from most to least trustworthy. */
+export type IdentifySource = 'tags' | 'filename' | 'search' | 'ai' | 'audio';
+
+export interface SongMatch {
+  title: string;
+  artist: string;
+  album?: string;
+  /** Duration of the matched lyrics record, when known. */
+  durationSec?: number;
+  confidence: 'high' | 'medium' | 'low';
+  source: IdentifySource;
+}
+
+export interface Identification {
+  match: SongMatch | null;
+  lyrics: Lyrics | null;
+  /** Whether AI was used for this answer, and whether it's available at all. */
+  ai: { used: boolean; available: boolean };
+  /** True when sending a short audio clip to /identify/audio might still help. */
+  canListen: boolean;
+  /** What Whisper heard (audio identification only, trimmed). */
+  transcript?: string;
+}

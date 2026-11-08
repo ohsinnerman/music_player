@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { z } from 'zod';
 import type { Env } from '../config/env.js';
 import type { Playlist, Track } from '../domain/types.js';
@@ -8,6 +8,7 @@ import { ID_PATTERN } from '../lib/ids.js';
 import { burnPasswordCheck, hashPassword, passwordProblem, verifyPassword } from '../security/password.js';
 import type { TokenService } from '../security/tokens.js';
 import type { CatalogService } from '../services/catalog.js';
+import { MIME_EXT, type IdentifyService } from '../services/identify.js';
 import type { LyricsService } from '../services/lyrics.js';
 import type { Store, UserPlaylistRecord, UserRecord } from '../store/types.js';
 import { ah, authMiddleware, limiter, parse } from './middleware.js';
@@ -45,9 +46,10 @@ export interface RouteDeps {
   tokens: TokenService;
   catalog: CatalogService;
   lyrics: LyricsService;
+  identify: IdentifyService;
 }
 
-export function createRoutes({ env, store, tokens, catalog, lyrics }: RouteDeps): Router {
+export function createRoutes({ env, store, tokens, catalog, lyrics, identify }: RouteDeps): Router {
   const r = Router();
   const { requireAuth } = authMiddleware(tokens, store);
 
@@ -58,6 +60,8 @@ export function createRoutes({ env, store, tokens, catalog, lyrics }: RouteDeps)
   );
   const refreshLimiter = limiter(15 * 60_000, Math.max(60, env.RATE_LIMIT_AUTH_PER_15MIN * 3), 'refresh');
   const searchLimiter = limiter(60_000, env.RATE_LIMIT_SEARCH_PER_MIN, 'search');
+  const identifyLimiter = limiter(60_000, env.RATE_LIMIT_IDENTIFY_PER_MIN, 'identify');
+  const listenLimiter = limiter(60 * 60_000, env.RATE_LIMIT_IDENTIFY_AUDIO_PER_HOUR, 'identify-audio');
 
   const cachePublic = (seconds: number) => ah(async (_req, res, next) => {
     res.setHeader('Cache-Control', `public, max-age=${seconds}, stale-while-revalidate=${seconds * 4}`);
@@ -70,7 +74,14 @@ export function createRoutes({ env, store, tokens, catalog, lyrics }: RouteDeps)
     res.json({ data: { status: 'ok', time: new Date().toISOString() } });
   });
   r.get('/config', (_req, res) => {
-    res.json({ data: { providers: catalog.providers(), registration: env.ALLOW_REGISTRATION, version: 1 } });
+    res.json({
+      data: {
+        providers: catalog.providers(),
+        registration: env.ALLOW_REGISTRATION,
+        version: 1,
+        features: { identify: true, ai: identify.aiAvailableNoCharge(), listen: identify.aiAvailableNoCharge() },
+      },
+    });
   });
 
   // ───────────── Auth ─────────────
@@ -226,6 +237,52 @@ export function createRoutes({ env, store, tokens, catalog, lyrics }: RouteDeps)
       } else {
         res.json({ data: await lyrics.lookup({ title: q.title, artist: q.artist, album: q.album, durationSec: q.duration }) });
       }
+    }),
+  );
+
+  // ───────────── Identify (songs imported from the device) ─────────────
+  const hint = {
+    title: z.string().trim().max(200).optional(),
+    artist: z.string().trim().max(200).optional(),
+    album: z.string().trim().max(200).optional(),
+    duration: z.coerce.number().min(1).max(7200).optional(),
+    filename: z.string().trim().max(255).optional(),
+  };
+  const toInput = (q: { title?: string; artist?: string; album?: string; duration?: number; filename?: string }) => ({
+    title: q.title || undefined,
+    artist: q.artist || undefined,
+    album: q.album || undefined,
+    durationSec: q.duration,
+    filename: q.filename || undefined,
+  });
+
+  /** Tags + file name → canonical song + lyrics. Uses AI only if the cheap paths fail. */
+  r.post(
+    '/identify',
+    identifyLimiter,
+    ah(async (req, res) => {
+      const body = parse(
+        z.object(hint).refine((b) => b.title || b.filename, { message: 'Send at least a title or a file name' }),
+        req.body,
+      );
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({ data: await identify.identify(toInput(body)) });
+    }),
+  );
+
+  /** A short audio clip (≤ 4 MB) → Whisper → AI → lyrics. Hints go in the query string. */
+  r.post(
+    '/identify/audio',
+    listenLimiter,
+    express.raw({ type: Object.keys(MIME_EXT), limit: '4mb' }),
+    ah(async (req, res) => {
+      const mime = String(req.headers['content-type'] ?? '').split(';')[0]!.trim().toLowerCase();
+      if (!MIME_EXT[mime]) throw badRequest('Send audio as audio/mpeg, audio/flac, audio/wav, audio/ogg or audio/mp4');
+      const bytes = req.body;
+      if (!Buffer.isBuffer(bytes) || bytes.length < 2048) throw badRequest('Audio clip is missing or too short');
+      const q = parse(z.object(hint), req.query);
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({ data: await identify.identifyAudio({ bytes: new Uint8Array(bytes), mime }, toInput(q)) });
     }),
   );
 

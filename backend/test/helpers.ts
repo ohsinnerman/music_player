@@ -33,7 +33,7 @@ const dzTrack = (id: number, title: string) => ({
   album: { id: 302127, title: 'Discovery', cover_medium: 'm.jpg', cover_big: 'b.jpg', cover_xl: 'xl.jpg' },
 });
 
-type Handler = (url: URL) => { status?: number; body: unknown } | undefined;
+export type Handler = (url: URL, init?: RequestInit) => { status?: number; body: unknown } | undefined;
 
 export function fakeFetch(overrides: Handler[] = []) {
   const calls: string[] = [];
@@ -66,11 +66,11 @@ export function fakeFetch(overrides: Handler[] = []) {
       ? { body: { id: 1, trackName: 'x', artistName: 'y', duration: 200, instrumental: false, plainLyrics: 'Hello\nWorld', syncedLyrics: '[00:01.00]Hello\n[00:02.50]World' } }
       : undefined),
   ];
-  const impl = (async (input: string | URL | Request) => {
+  const impl = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
     calls.push(url.href);
     for (const h of handlers) {
-      const r = h(url);
+      const r = h(url, init);
       if (r) return new Response(JSON.stringify(r.body), { status: r.status ?? 200, headers: { 'content-type': 'application/json' } });
     }
     return new Response(JSON.stringify({ message: 'unmocked' }), { status: 404 });

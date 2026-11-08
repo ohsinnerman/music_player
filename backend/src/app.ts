@@ -11,6 +11,8 @@ import { createLogger, type Logger } from './lib/logger.js';
 import { createProviders } from './providers/registry.js';
 import { createTokenService } from './security/tokens.js';
 import { createCatalogService } from './services/catalog.js';
+import { createGroq } from './services/groq.js';
+import { createIdentifyService } from './services/identify.js';
 import { createLyricsService } from './services/lyrics.js';
 import { createMemoryStore } from './store/memory.js';
 import { createMongoStore } from './store/mongo.js';
@@ -44,6 +46,23 @@ export function buildApp({ env, store, logger, fetchImpl }: AppDeps): BuiltApp {
   });
   const lyrics = createLyricsService(lyricsHttp, env.LRCLIB_API_BASE, cache);
   const tokens = createTokenService(env, db);
+
+  // Optional AI song identification (Groq). Budgeted per instance per UTC day.
+  const groq = env.GROQ_API_KEY
+    ? createGroq({ apiKey: env.GROQ_API_KEY, base: env.GROQ_API_BASE, model: env.GROQ_MODEL, whisperModel: env.GROQ_WHISPER_MODEL, fetchImpl })
+    : null;
+  const budget = { day: '', used: 0 };
+  const identify = createIdentifyService({
+    lyrics,
+    groq,
+    allowAi: () => {
+      const day = new Date().toISOString().slice(0, 10);
+      if (budget.day !== day) Object.assign(budget, { day, used: 0 });
+      if (budget.used >= env.AI_DAILY_LIMIT) return false;
+      budget.used++;
+      return true;
+    },
+  });
 
   const app = express();
   app.disable('x-powered-by');
@@ -86,7 +105,7 @@ export function buildApp({ env, store, logger, fetchImpl }: AppDeps): BuiltApp {
   app.get('/', (_req, res) => {
     res.json({ name: 'Aura Music API', docs: 'https://github.com/ohsinnerman/music_player/tree/main/docs', health: '/v1/health' });
   });
-  app.use('/v1', createRoutes({ env, store: db, tokens, catalog, lyrics }));
+  app.use('/v1', createRoutes({ env, store: db, tokens, catalog, lyrics, identify }));
   app.use(notFoundHandler);
   app.use(errorHandler(log));
 
