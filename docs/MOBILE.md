@@ -29,7 +29,7 @@ Stack and its ref is shared through `ChromeProvider`.
 
 | Store | Persisted | Holds |
 |---|---|---|
-| `settings/store.ts` | AsyncStorage | server URL, onboarded, appearance (system/light/dark), haptics, reduce transparency, living background, listen-to-identify, recent searches |
+| `settings/store.ts` | AsyncStorage | server URL, onboarded, appearance (system/light/dark), glass material level (0–1), haptics, living background, listen-to-identify, recent searches |
 | `local/store.ts` | AsyncStorage (+ art & lyrics files in the documents folder) | songs imported from the phone, their likes, identification status |
 | `auth/store.ts` | refresh token in SecureStore | status (`loading`/`guest`/`authed`), user |
 | `player/store.ts` | queue snapshot in AsyncStorage | queue, index, context, repeat, shuffle, playing/buffering; `clock` shared values |
@@ -51,6 +51,13 @@ quality reader + clip cutter, unit-tested), `import.ts` (file/folder pickers, bu
 `store.ts`. Imported tracks have `provider: 'local'` and `local.uri`; the engine plays that URI directly.
 Their likes stay on the device and they're kept out of server-synced playlists. Details:
 [LOCAL_MUSIC.md](LOCAL_MUSIC.md).
+
+## Glass material
+
+`lib/glass.ts` exposes `glassLevel` (shared value, synced from `settings.glass` on launch and animated on
+changes) and the pure `material(level)` model in `lib/glassMaterial.ts` (unit-tested). `Glass` reads both;
+the slider (`components/settings/GlassSlider.tsx`) writes `glassLevel` directly while dragging.
+See [DESIGN.md → Glass material dial](DESIGN.md#signature-components).
 
 ## Theming
 

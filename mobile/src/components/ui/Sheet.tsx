@@ -95,7 +95,7 @@ export function SheetHost() {
       </Animated.View>
       <GestureDetector gesture={pan}>
         <Animated.View style={[styles.panelWrap, panelStyle]}>
-          <Glass radius={32} intensity={70} style={[styles.panel, { paddingBottom: insets.bottom + 16, maxHeight: height - insets.top - 24 }]}>
+          <Glass radius={32} intensity={70} minTint={0.62} style={[styles.panel, { paddingBottom: insets.bottom + 16, maxHeight: height - insets.top - 24 }]}>
             <View style={styles.handle} />
             {render(closeSheet)}
           </Glass>
@@ -108,6 +108,6 @@ export function SheetHost() {
 const useStyles = makeStyles((colors) => ({
   backdrop: { backgroundColor: colors.scrim },
   panelWrap: { position: 'absolute', left: 8, right: 8, bottom: 8 },
-  panel: { paddingTop: 10, backgroundColor: colors.scheme === 'dark' ? 'rgba(16,16,21,0.6)' : 'rgba(255,255,255,0.6)' },
+  panel: { paddingTop: 10 },
   handle: { alignSelf: 'center', width: 38, height: 5, borderRadius: 3, backgroundColor: colors.strokeStrong, marginBottom: 8 },
 }));

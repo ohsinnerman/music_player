@@ -93,7 +93,7 @@ npx tsc --noEmit && npx eslint src
 - In the player: 🎤 lyrics, ☰ queue, and the quality badge in the middle (tap it for *How it’s playing*).
 - **Library → On this phone** → add files or a folder of your own music (FLAC, WAV, MP3…). Open
   lyrics on one of them and Aura identifies the song and finds them ([LOCAL_MUSIC.md](LOCAL_MUSIC.md)).
-- **Settings → Appearance**: System / Light / Dark.
+- **Settings → Appearance**: System / Light / Dark. **Settings → Glass**: slide from Liquid Glass to Frosted to Opaque.
 
 ## 4. Get an APK
 

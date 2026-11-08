@@ -31,7 +31,9 @@ interface SettingsState {
   serverUrl: string;
   onboarded: boolean;
   haptics: boolean;
-  reduceTransparency: boolean;
+  /** Glass material: 0 = liquid glass, 0.5 = frosted, 1 = opaque. Continuous. */
+  glass: number;
+  setGlass: (v: number) => void;
   /** Animated artwork background in the player. */
   livingBackground: boolean;
   /** Let the server "listen" to a short clip of an imported song to identify it. */
@@ -41,7 +43,7 @@ interface SettingsState {
   setThemeMode: (m: ThemeMode) => void;
   setServerUrl: (url: string) => void;
   setOnboarded: (v: boolean) => void;
-  toggle: (key: 'haptics' | 'reduceTransparency' | 'livingBackground' | 'aiListen') => void;
+  toggle: (key: 'haptics' | 'livingBackground' | 'aiListen') => void;
   pushRecentSearch: (q: string) => void;
   clearRecentSearches: () => void;
 }
@@ -52,7 +54,8 @@ export const useSettings = create<SettingsState>()(
       serverUrl: BUILD_API_URL,
       onboarded: false,
       haptics: true,
-      reduceTransparency: false,
+      glass: 0,
+      setGlass: (v) => set({ glass: Math.min(1, Math.max(0, Math.round(v * 1000) / 1000)) }),
       livingBackground: true,
       aiListen: true,
       recentSearches: [],
@@ -72,14 +75,23 @@ export const useSettings = create<SettingsState>()(
     {
       name: 'aura.settings',
       storage: persistStorage,
-      version: 1,
-      partialize: ({ serverUrl, onboarded, haptics, reduceTransparency, livingBackground, aiListen, recentSearches, themeMode }) => ({
+      version: 2,
+      // v1 had an on/off "Reduce transparency"; v2 has the continuous glass material.
+      migrate: (persisted, version) => {
+        const s = (persisted ?? {}) as Record<string, unknown>;
+        if (version < 2) {
+          s.glass = s.reduceTransparency ? 1 : 0;
+          delete s.reduceTransparency;
+        }
+        return s as unknown as SettingsState;
+      },
+      partialize: ({ serverUrl, onboarded, haptics, glass, livingBackground, aiListen, recentSearches, themeMode }) => ({
+        glass,
         aiListen,
         themeMode,
         serverUrl,
         onboarded,
         haptics,
-        reduceTransparency,
         livingBackground,
         recentSearches,
       }),

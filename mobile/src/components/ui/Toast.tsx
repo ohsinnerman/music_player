@@ -38,7 +38,7 @@ export function ToastHost() {
         const Icon = ICON[t.kind];
         return (
           <Animated.View key={t.id} entering={FadeInUp.springify().damping(18)} exiting={FadeOutUp.duration(180)} layout={LinearTransition} style={{ marginBottom: 8 }}>
-            <Glass radius={22} intensity={60} style={styles.toast}>
+            <Glass radius={22} intensity={60} minTint={0.55} style={styles.toast}>
               <View style={styles.row} accessibilityLiveRegion="polite">
                 <Icon size={18} color={t.kind === 'info' ? colors.text : t.kind === 'success' ? colors.success : colors.danger} strokeWidth={2.4} />
                 <Text variant="callout" numberOfLines={2} style={{ flexShrink: 1 }}>

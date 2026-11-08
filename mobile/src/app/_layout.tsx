@@ -24,6 +24,7 @@ import { PlayerSheet } from '@/components/player/PlayerSheet';
 import { SheetHost } from '@/components/ui/Sheet';
 import { ToastHost } from '@/components/ui/Toast';
 import { ChromeProvider, useBlurTarget } from '@/lib/chrome';
+import { startGlassSync } from '@/lib/glass';
 import { player } from '@/player/engine';
 import { useSettings } from '@/settings/store';
 import { ThemeProvider, useColors } from '@/theme';
@@ -103,6 +104,8 @@ export default function RootLayout() {
     void useAuth.getState().bootstrap();
     void player.restore();
   }, [hydrated]);
+
+  useEffect(() => (hydrated ? startGlassSync() : undefined), [hydrated]);
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => undefined);

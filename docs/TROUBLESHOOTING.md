@@ -27,8 +27,9 @@ on some phones (Xiaomi/Poco, Oppo, Vivo…) kill background apps — set Aura's 
 "No restrictions".
 
 ### Glass looks flat / no blur
-Real blur needs Android 12+. Older versions get a frosted tint. Also check **Settings → Reduce
-transparency** is off.
+Real blur needs Android 12+. Older versions get a frosted tint. Also check **Settings → Glass** isn't
+set to *Opaque* (the slider's right end). Glass over the open full player is always frosted (Android can
+only blur content inside the app's blur target).
 
 ### Signed out unexpectedly
 Refresh tokens rotate; if an old token is replayed (e.g. restored from another device) the server

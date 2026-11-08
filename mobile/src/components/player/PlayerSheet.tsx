@@ -112,7 +112,7 @@ export function PlayerSheet() {
   const context = usePlayer((s) => s.context);
   const sleepAt = usePlayer((s) => s.sleepAt);
   const { panel, setPanel, isOpen, setOpen } = usePlayerUi();
-  const living = useSettings((s) => s.livingBackground && !s.reduceTransparency);
+  const living = useSettings((s) => s.livingBackground);
   const path = usePathname();
   const hidden = HIDDEN_ON.some((p) => path.startsWith(p));
   const palette = usePalette(art(track?.artwork, 'small'));

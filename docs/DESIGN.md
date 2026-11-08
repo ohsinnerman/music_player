@@ -76,7 +76,26 @@ actions (play/pause, like, tab switch, success/error).
 
 **Glass** (`components/ui/Glass.tsx`) — `overlay` variant blurs the real content beneath (Android 12+
 RenderNode blur via `BlurTargetView`), `inline` variant (inside scroll views) uses a frosted fill on
-Android to avoid recursive blur. "Reduce transparency" swaps to solid.
+Android to avoid recursive blur.
+
+**Glass material dial** (Settings → Look & feel → Glass) — one continuous slider from **Liquid Glass**
+(0) through **Frosted** (0.5) to **Opaque** (1), with soft magnetic detents and a haptic tick at each.
+`lib/glassMaterial.ts → material(level)` turns the level into every layer's strength:
+
+| Layer | Liquid Glass → Frosted → Opaque |
+|---|---|
+| Material tint (`glassBase`) | 36 % → ~58 % → 100 % opaque (≥ 86 % where Android can't blur) |
+| Blur intensity | ×0.85 → ×1.75 (frosted blurs more), unmounted from 97 % up |
+| Top sheen, top lip | full → faint → off |
+| Bottom refraction glow | full → off by ~45 % (the "liquid" cue) |
+| Edge rim | 100 % → 45 % |
+
+The level lives in a UI-thread shared value (`lib/glass.ts → glassLevel`), so dragging re-tints the
+dock, mini player, sheets and toasts live at frame rate without React re-renders; the setting is saved
+on release and blur intensity re-quantises then. Text-heavy surfaces set a floor (`minTint`: sheets
+0.62, toasts 0.55) so liquid glass never costs legibility. A Skia preview above the slider (drifting
+shapes behind a real backdrop-blurred card) uses the same curve. The old on/off "Reduce transparency"
+setting is migrated: on → Opaque, off → Liquid Glass.
 
 **Glass dock** — tab pill + search circle. A glass lens slides between tabs with a liquid stretch.
 Scrolling down collapses the pill into a single circle and slides the mini player down beside it;

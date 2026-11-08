@@ -38,6 +38,8 @@ export interface ColorTokens {
 
   glassTint: string;
   glassTintSolid: string;
+  /** Opaque colour of the glass material; its opacity is driven by the Glass setting. */
+  glassBase: string;
   glassBorder: string;
   scrim: string;
   /** expo-blur tint name for this scheme. */
@@ -76,6 +78,7 @@ export const darkColors: ColorTokens = {
 
   glassTint: 'rgba(22,22,28,0.52)',
   glassTintSolid: 'rgba(22,22,28,0.94)',
+  glassBase: '#17171D',
   glassBorder: 'rgba(255,255,255,0.08)',
   scrim: 'rgba(0,0,0,0.55)',
   blurTint: 'systemUltraThinMaterialDark',
@@ -113,6 +116,7 @@ export const lightColors: ColorTokens = {
 
   glassTint: 'rgba(255,255,255,0.58)',
   glassTintSolid: 'rgba(250,250,252,0.95)',
+  glassBase: '#F7F7F9',
   glassBorder: 'rgba(10,10,20,0.08)',
   scrim: 'rgba(0,0,0,0.32)',
   blurTint: 'systemUltraThinMaterialLight',

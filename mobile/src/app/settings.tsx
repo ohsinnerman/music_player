@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { endpoints } from '@/api/endpoints';
 import { queryClient } from '@/api/queries';
 import { useAuth } from '@/auth/store';
+import { GlassControl } from '@/components/settings/GlassControl';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -302,9 +303,9 @@ export default function Settings() {
         <Group title="Look & feel">
           <Appearance />
           <View style={styles.sep} />
-          <Toggle label="Living artwork" hint="Animated, blurred cover behind the player" value={s.livingBackground} onChange={() => s.toggle('livingBackground')} />
+          <GlassControl />
           <View style={styles.sep} />
-          <Toggle label="Reduce transparency" hint="Solid surfaces instead of glass" value={s.reduceTransparency} onChange={() => s.toggle('reduceTransparency')} />
+          <Toggle label="Living artwork" hint="Animated, blurred cover behind the player" value={s.livingBackground} onChange={() => s.toggle('livingBackground')} />
           <View style={styles.sep} />
           <Toggle label="Haptics" value={s.haptics} onChange={() => s.toggle('haptics')} />
         </Group>
