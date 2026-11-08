@@ -45,7 +45,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'android.permission.ACCESS_COARSE_LOCATION',
       'android.permission.READ_CONTACTS',
       'android.permission.SYSTEM_ALERT_WINDOW',
+      'android.permission.READ_EXTERNAL_STORAGE',
+      'android.permission.WRITE_EXTERNAL_STORAGE',
     ],
+    // Android 13+: lets the media notification (lock-screen controls) appear.
+    permissions: ['android.permission.POST_NOTIFICATIONS'],
     softwareKeyboardLayoutMode: 'pan',
   },
   plugins: [
@@ -81,6 +85,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         },
       },
     ],
+    './plugins/withReleaseSigning',
   ],
   experiments: { typedRoutes: false },
   extra: {

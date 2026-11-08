@@ -1,0 +1,126 @@
+name: Android APK
+
+# Builds a release APK of the mobile app on every push to main that touches
+# mobile/, and on demand from the Actions tab ("Run workflow").
+#
+# Configure (Settings → Secrets and variables → Actions):
+#   Variables:  API_URL                      https URL of your deployed backend (baked in as the default server)
+#   Secrets (optional, for your own signing key — see docs/BUILD_APK.md):
+#               ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/android-apk.yml'
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: 'Backend URL to bake in (leave empty to use the API_URL variable)'
+        required: false
+        default: ''
+      allow_cleartext:
+        description: 'Allow http:// servers (LAN testing only — less secure)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      EXPO_PUBLIC_API_URL: ${{ github.event.inputs.api_url || vars.API_URL }}
+      AURA_ALLOW_CLEARTEXT: ${{ github.event.inputs.allow_cleartext == 'true' && 'true' || 'false' }}
+      EXPO_NO_TELEMETRY: '1'
+      NODE_OPTIONS: --max-old-space-size=6144
+      GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=1g" -Dorg.gradle.daemon=false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Generate native Android project
+        run: npx expo prebuild --platform android --clean --no-install
+
+      - name: Set up release signing (if secrets are configured)
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/aura-release.jks"
+            {
+              echo "AURA_UPLOAD_STORE_FILE=$RUNNER_TEMP/aura-release.jks"
+              echo "AURA_UPLOAD_STORE_PASSWORD=$KEYSTORE_PASSWORD"
+              echo "AURA_UPLOAD_KEY_ALIAS=$KEY_ALIAS"
+              echo "AURA_UPLOAD_KEY_PASSWORD=$KEY_PASSWORD"
+            } >> "$GITHUB_ENV"
+            echo "Signing with your release keystore."
+          else
+            echo "::notice::No ANDROID_KEYSTORE_BASE64 secret — signing with the debug key (fine for sideloading)."
+          fi
+
+      - name: Build APK
+        working-directory: mobile/android
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Collect APK
+        id: apk
+        run: |
+          SHORT=$(git rev-parse --short HEAD)
+          OUT="aura-1.0.0-${SHORT}.apk"
+          cp android/app/build/outputs/apk/release/app-release.apk "../$OUT"
+          echo "file=$OUT" >> "$GITHUB_OUTPUT"
+          ls -lh "../$OUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aura-apk
+          path: ${{ steps.apk.outputs.file }}
+          retention-days: 30
+
+      - name: Publish to the "latest" GitHub release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Aura — latest build
+          prerelease: true
+          make_latest: true
+          body: |
+            Automated build of `${{ github.sha }}`.
+            Download **${{ steps.apk.outputs.file }}** below and open it on your phone to install.
+            Default server baked into this build: `${{ env.EXPO_PUBLIC_API_URL || 'none — set it in the app under Settings → Server' }}`
+          files: ${{ steps.apk.outputs.file }}
