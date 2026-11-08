@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Clock3, Heart, ListMusic, Plus } from 'lucide-react-native';
+import { ChevronRight, Clock3, Heart, ListMusic, Plus, Smartphone } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
@@ -16,6 +16,7 @@ import { PressableScale } from '@/components/ui/PressableScale';
 import { EmptyState } from '@/components/ui/States';
 import { Text } from '@/components/ui/Text';
 import { type LibraryPlaylist, useLikedTracks, usePlaylists, useRecentlyPlayed } from '@/library/hooks';
+import { useDeviceMusic } from '@/local/store';
 import { dockScrollWorklet } from '@/lib/chrome';
 import { openItem } from '@/lib/nav';
 import { player } from '@/player/engine';
@@ -40,6 +41,26 @@ function LikedTile() {
         </View>
         <Text style={styles.likedGlyph}>♥</Text>
       </LinearGradient>
+    </PressableScale>
+  );
+}
+
+function DeviceTile() {
+  const colors = useColors();
+  const styles = useStyles();
+  const count = useDeviceMusic((s) => s.tracks.length);
+  return (
+    <PressableScale onPress={() => router.push('/device')} scaleTo={0.98} style={styles.device} accessibilityLabel={`Songs on this phone, ${count} songs`}>
+      <LinearGradient colors={['#5AA9FF', '#2E7CF6', '#1A2F6B']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.deviceIcon}>
+        <Smartphone size={26} color="#fff" strokeWidth={1.8} />
+      </LinearGradient>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text variant="headline">On this phone</Text>
+        <Text variant="caption" tone="secondary" numberOfLines={1}>
+          {count ? `${count} ${count === 1 ? 'song' : 'songs'} · your own files` : 'Add FLAC, WAV, MP3 and more — with lyrics'}
+        </Text>
+      </View>
+      <ChevronRight size={20} color={colors.textTertiary} />
     </PressableScale>
   );
 }
@@ -107,8 +128,9 @@ export default function Library() {
       ) : null}
 
       {filter !== 'recent' ? (
-        <View style={{ paddingHorizontal: GUTTER, marginTop: 18 }}>
+        <View style={{ paddingHorizontal: GUTTER, marginTop: 18, gap: 12 }}>
           <LikedTile />
+          <DeviceTile />
         </View>
       ) : null}
 
@@ -163,6 +185,8 @@ const useStyles = makeStyles((colors) => ({
   syncCard: { marginHorizontal: GUTTER, marginTop: 16, padding: 16, borderRadius: radius.md, backgroundColor: colors.fill, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.strokeStrong, gap: 4 },
   liked: { height: 96, borderRadius: radius.lg, flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 20, overflow: 'hidden' },
   likedGlyph: { position: 'absolute', right: -8, bottom: -38, fontSize: 130, color: 'rgba(255,255,255,0.12)' },
+  device: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 12, borderRadius: radius.lg, backgroundColor: colors.fill, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.strokeStrong },
+  deviceIcon: { width: 56, height: 56, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: GUTTER, marginBottom: 12 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: GUTTER, paddingVertical: 7 },
   emptyArt: { width: 60, height: 60, borderRadius: radius.sm, backgroundColor: colors.surfaceHigh, alignItems: 'center', justifyContent: 'center' },

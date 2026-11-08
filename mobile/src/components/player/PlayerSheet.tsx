@@ -64,6 +64,8 @@ function contextLabel(type?: string) {
       return 'Playing from genre';
     case 'liked':
       return 'Playing from your library';
+    case 'local':
+      return 'Playing from this phone';
     case 'search':
       return 'Playing from search';
     case 'radio':
@@ -397,7 +399,7 @@ export function PlayerSheet() {
                     <PressableScale
                       onPress={() => {
                         const a = track.artists[0];
-                        if (!a) return;
+                        if (!a || track.local) return;
                         closePlayer();
                         setTimeout(() => openArtist(a.id), 260);
                       }}
@@ -455,7 +457,11 @@ export function PlayerSheet() {
             />
             <View style={styles.sourceChip}>
               <Text variant="label" tone="tertiary" numberOfLines={1}>
-                {track.streamKind === 'full' ? `Full track · ${track.provider}` : `30s preview · ${track.provider}`}
+                {track.local
+                  ? `On this phone · ${track.local.codec ?? track.local.format.toUpperCase()}`
+                  : track.streamKind === 'full'
+                    ? `Full track · ${track.provider}`
+                    : `30s preview · ${track.provider}`}
               </Text>
             </View>
             <IconButton

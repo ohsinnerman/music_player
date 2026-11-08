@@ -7,6 +7,7 @@ import { type ByteSource, type TagResult, merge } from './types';
 export type { AudioFormat, ByteSource, Picture, SyncedLine, TagResult } from './types';
 export { parseFilename } from './filename';
 export { lrcToLines, looksLikeLrc } from './lrc';
+export { makeClip, MAX_CLIP_BYTES, type Clip } from './clip';
 
 /** Wrap an in-memory buffer as a ByteSource (tests, web). */
 export function memorySource(b: Uint8Array): ByteSource {
@@ -37,7 +38,7 @@ export async function readTags(src: ByteSource): Promise<TagResult> {
     const magic4 = ascii(head, 0, 4);
     if (magic4 === 'fLaC') {
       // Native FLAC tags win over a stray ID3 tag; ID3 only fills the gaps.
-      return finish(Object.assign(out, await readFlac(src, start)));
+      return finish(Object.assign(out, await readFlac(src, start), { audioStart: start }));
     }
     if (start === 0) {
       if (magic4 === 'OggS') return finish(Object.assign(out, await readOgg(src)));

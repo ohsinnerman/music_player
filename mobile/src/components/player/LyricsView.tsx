@@ -1,5 +1,5 @@
 import { MicVocal } from 'lucide-react-native';
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode, memo, useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import Animated, {
   type SharedValue,
@@ -13,11 +13,14 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { ApiError } from '@/api/client';
-import { useLyrics } from '@/api/queries';
-import type { LyricLine, Track } from '@/api/types';
+import { qk, queryClient, useLyrics, useServerConfig } from '@/api/queries';
+import type { LyricLine, Lyrics, Track } from '@/api/types';
+import { NoLyricsError, getLocalLyrics } from '@/local/identify';
+import { useDeviceMusic } from '@/local/store';
 import { player } from '@/player/engine';
 import { clock } from '@/player/store';
 import { fonts, makeStyles, type, useColors } from '@/theme';
+import { Button } from '../ui/Button';
 import { Text } from '../ui/Text';
 
 /** Find the active line for a time (binary search, runs on the UI thread). */
@@ -84,7 +87,7 @@ function BeatDots({ firstMs }: { firstMs: number }) {
   return <Animated.Text style={[styles.dots, style]}>• • •</Animated.Text>;
 }
 
-function Synced({ lines, height }: { lines: LyricLine[]; height: number }) {
+function Synced({ lines, height, credit }: { lines: LyricLine[]; height: number; credit: string }) {
   const ref = useAnimatedRef<Animated.ScrollView>();
   const times = useSharedValue(lines.map((l) => l.timeMs));
   const offsets = useSharedValue<number[]>([]);
@@ -140,13 +143,13 @@ function Synced({ lines, height }: { lines: LyricLine[]; height: number }) {
         <Line key={`${l.timeMs}-${i}`} line={l} index={i} active={active} onLayout={onLayout} />
       ))}
       <Text variant="footnote" tone="tertiary" style={{ marginTop: 28 }}>
-        Lyrics from LRCLIB
+        {credit}
       </Text>
     </Animated.ScrollView>
   );
 }
 
-function Message({ title, body }: { title: string; body?: string }) {
+function Message({ title, body, children }: { title: string; body?: string; children?: ReactNode }) {
   const colors = useColors();
   const styles = useStyles();
   return (
@@ -160,14 +163,61 @@ function Message({ title, body }: { title: string; body?: string }) {
           {body}
         </Text>
       ) : null}
+      {children ? <View style={styles.actions}>{children}</View> : null}
     </View>
+  );
+}
+
+function creditFor(data: Lyrics, track: Track, how: string | undefined): string {
+  const from = data.source === 'embedded' ? 'Lyrics from the file' : 'Lyrics from LRCLIB';
+  const id = how === 'ai' || how === 'audio' ? ' · song identified by AI' : '';
+  return track.local ? `${from}${id}` : from;
+}
+
+/** Imported song with no lyrics yet: say what we know, offer to listen / retry. */
+function LocalNoLyrics({ track, error }: { track: Track; error: unknown }) {
+  const ident = useDeviceMusic((s) => s.ident[track.id]);
+  const listenAvailable = useServerConfig().data?.features?.listen ?? false;
+  const [busy, setBusy] = useState<null | 'listen' | 'retry'>(null);
+  const run = async (mode: 'listen' | 'retry') => {
+    setBusy(mode);
+    try {
+      await queryClient.fetchQuery({
+        queryKey: qk.lyrics(track.id),
+        queryFn: () => getLocalLyrics(track, mode === 'listen' ? { listen: true } : { force: true }),
+        staleTime: 0,
+        retry: false,
+      });
+    } catch {
+      /* the query now holds the new error state */
+    } finally {
+      setBusy(null);
+    }
+  };
+  if (!(error instanceof NoLyricsError)) {
+    const offline = error instanceof ApiError && error.isNetwork;
+    return (
+      <Message title="Couldn’t look this song up" body={offline ? 'Check your connection and try again.' : error instanceof Error ? error.message : undefined}>
+        <Button title="Try again" variant="secondary" loading={busy === 'retry'} onPress={() => run('retry')} />
+      </Message>
+    );
+  }
+  const m = ident?.match;
+  const body = m ? `This sounds like “${m.title}” by ${m.artist}, but there are no lyrics for it yet.` : 'We couldn’t tell which song this is from its tags or file name.';
+  const canListen = listenAvailable && !ident?.listened && !!track.local;
+  return (
+    <Message title={busy === 'listen' ? 'Listening…' : 'No lyrics found'} body={busy === 'listen' ? 'Identifying the song from a short clip.' : body}>
+      {canListen ? <Button title="Listen & identify" loading={busy === 'listen'} onPress={() => run('listen')} /> : null}
+      <Button title="Search again" variant="secondary" loading={busy === 'retry'} onPress={() => run('retry')} />
+    </Message>
   );
 }
 
 export const LyricsView = memo(function LyricsView({ track, height }: { track: Track; height: number }) {
   const colors = useColors();
   const styles = useStyles();
-  const { data, isLoading, error } = useLyrics(track.id);
+  const { data, isLoading, error } = useLyrics(track);
+  const how = useDeviceMusic((s) => (track.local ? s.ident[track.id]?.match?.source : undefined));
   const [ready, setReady] = useState(false);
   // Defer mounting the (possibly long) list one frame so the panel transition stays smooth.
   useEffect(() => {
@@ -179,21 +229,27 @@ export const LyricsView = memo(function LyricsView({ track, height }: { track: T
     return (
       <View style={styles.message}>
         <ActivityIndicator color={colors.textSecondary} />
+        {track.local && ready ? (
+          <Text variant="callout" tone="secondary" align="center">
+            Finding the lyrics for this song…
+          </Text>
+        ) : null}
       </View>
     );
   }
+  if (error && track.local) return <LocalNoLyrics track={track} error={error} />;
   if (error) {
     const notFound = error instanceof ApiError && error.status === 404;
     return <Message title={notFound ? 'No lyrics for this one yet' : 'Couldn’t load lyrics'} body={notFound ? 'Enjoy the music.' : 'Check your connection and try again.'} />;
   }
   if (data?.instrumental) return <Message title="Instrumental" body="Just vibes on this one." />;
-  if (data?.synced?.length) return <Synced lines={data.synced} height={height} />;
+  if (data?.synced?.length) return <Synced lines={data.synced} height={height} credit={creditFor(data, track, how)} />;
   if (data?.plain) {
     return (
       <Animated.ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 28, paddingBottom: 80 }}>
         <Text style={styles.plain}>{data.plain}</Text>
         <Text variant="footnote" tone="tertiary" style={{ marginTop: 24 }}>
-          Lyrics from LRCLIB · not time-synced
+          {creditFor(data, track, how)} · not time-synced
         </Text>
       </Animated.ScrollView>
     );
@@ -206,4 +262,5 @@ const useStyles = makeStyles((colors) => ({
   dots: { fontFamily: fonts.extrabold, fontSize: 30, color: colors.text, paddingVertical: 8, letterSpacing: 4 },
   plain: { fontFamily: fonts.bold, fontSize: 21, lineHeight: 32, color: 'rgba(255,255,255,0.85)' },
   message: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 40 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginTop: 12 },
 }));

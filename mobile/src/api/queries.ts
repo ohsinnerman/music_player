@@ -1,6 +1,8 @@
 import { QueryClient, keepPreviousData, useQuery } from '@tanstack/react-query';
+import { getLocalLyrics } from '@/local/identify';
 import { ApiError } from './client';
 import { endpoints } from './endpoints';
+import type { Track } from './types';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,11 +49,12 @@ export const useSearch = (q: string) =>
 export const useAlbum = (id: string) => useQuery({ queryKey: qk.album(id), queryFn: () => endpoints.album(id), enabled: !!id });
 export const useArtist = (id: string) => useQuery({ queryKey: qk.artist(id), queryFn: () => endpoints.artist(id), enabled: !!id });
 export const usePlaylist = (id: string) => useQuery({ queryKey: qk.playlist(id), queryFn: () => endpoints.playlist(id), enabled: !!id });
-export const useLyrics = (id: string | undefined) =>
+export const useLyrics = (track: Track | undefined) =>
   useQuery({
-    queryKey: qk.lyrics(id ?? ''),
-    queryFn: ({ signal }) => endpoints.lyrics(id!, signal),
-    enabled: !!id,
+    queryKey: qk.lyrics(track?.id ?? ''),
+    // Imported songs: embedded → cached → identify (tags / AI) → listen.
+    queryFn: ({ signal }) => (track!.local ? getLocalLyrics(track!) : endpoints.lyrics(track!.id, signal)),
+    enabled: !!track,
     staleTime: Infinity,
     retry: false,
   });

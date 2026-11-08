@@ -35,7 +35,8 @@ let lastMetaId: string | null = null;
 /** While rebuilding the native queue, ignore index events until this index shows up. */
 let pending: { index: number; until: number } | null = null;
 
-const source = (t: Track) => ({ uri: playUrl(t.id), name: t.title });
+/** Imported songs play straight from the file; catalog songs via the server's /play redirect. */
+const source = (t: Track) => ({ uri: t.local?.uri ?? playUrl(t.id), name: t.title });
 
 function metadata(t: Track) {
   return {
@@ -102,7 +103,9 @@ function onStatus(st: AudioPlaylistStatus & { error?: { message?: string } | str
     const { index, queue } = usePlayer.getState();
     if (lastErrorIndex === index) return;
     lastErrorIndex = index;
-    toast(index < queue.length - 1 ? 'Couldn’t play this song — skipping' : 'Couldn’t play this song', 'error');
+    const local = !!queue[index]?.local;
+    const what = local ? 'Couldn’t open this file (moved or deleted?)' : 'Couldn’t play this song';
+    toast(index < queue.length - 1 ? `${what} — skipping` : what, 'error');
     if (index < queue.length - 1) pl?.next();
   } else if (st.playing) {
     lastErrorIndex = -1;

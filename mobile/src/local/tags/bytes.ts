@@ -69,7 +69,6 @@ export function utf16(b: Uint8Array, littleEndian?: boolean): string {
 /** Strip NULs and surrounding whitespace that tag writers love to leave behind. */
 export const clean = (s: string | undefined): string | undefined => {
   if (s === undefined) return undefined;
-  // eslint-disable-next-line no-control-regex
   const t = s.replace(/\u0000+$/g, '').replace(/\u0000/g, ' ').trim();
   return t || undefined;
 };

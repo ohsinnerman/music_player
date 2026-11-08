@@ -4,6 +4,7 @@ import type {
   ArtistDetail,
   AuthPayload,
   Genre,
+  Identification,
   Lyrics,
   Playlist,
   SearchResults,
@@ -36,6 +37,9 @@ export const endpoints = {
   playlist: (id: string) => api.get<Playlist>(`/playlists/${enc(id)}`),
   radio: (id: string) => api.get<Track[]>(`/tracks/${enc(id)}/radio`),
   lyrics: (trackId: string, signal?: AbortSignal) => api.get<Lyrics>(`/lyrics${qs({ trackId })}`, signal),
+
+  // Songs imported from the device
+  identify: (b: { title?: string; artist?: string; album?: string; duration?: number; filename?: string }) => api.post<Identification>('/identify', b),
 
   // Me
   me: () => api.get<User>('/me'),

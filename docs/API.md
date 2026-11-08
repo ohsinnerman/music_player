@@ -33,7 +33,9 @@ ArtistDetail = Artist & { bio?, cover?, topTracks: Track[], albums: Album[] }
 Playlist { kind:'playlist', id, title, description?, artwork, owner?, trackCount?, provider|'user', tracks? }
 Genre    { kind:'genre', id, name, colors:[hex,hex] }
 Section  { id, title, subtitle?, layout:'hero'|'shelf'|'grid'|'chart'|'artists'|'genres'|'quickpicks', items }
-Lyrics   { trackId?, synced: {timeMs,text}[] | null, plain: string|null, instrumental, source:'lrclib' }
+Lyrics   { trackId?, synced: {timeMs,text}[] | null, plain: string|null, instrumental, source:'lrclib'|'embedded' }
+Identification { match: { title, artist, album?, durationSec?, confidence:'high'|'medium'|'low', source:'tags'|'filename'|'search'|'ai'|'audio' } | null,
+                 lyrics: Lyrics | null, ai: { used, available }, canListen, transcript? }
 StreamInfo { url, kind:'full'|'preview', expiresAt, mimeType? }
 ```
 
@@ -42,7 +44,17 @@ StreamInfo { url, kind:'full'|'preview', expiresAt, mimeType? }
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/health` | `{status:'ok', time}` |
-| GET | `/config` | Enabled providers, whether sign-ups are open |
+| GET | `/config` | Enabled providers, whether sign-ups are open, `features: { identify, ai, listen }` |
+
+## Identify (songs imported from the phone)
+
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| POST | `/identify` | JSON `{ title?, artist?, album?, duration?, filename? }` (title or filename required) | `Identification`. Tags → file name → LRCLIB search → Groq LLM. 30/min/IP |
+| POST | `/identify/audio` | Raw audio clip ≤ 4 MB (`audio/mpeg`, `audio/flac`, `audio/wav`, `audio/ogg`, `audio/opus`, `audio/mp4`); same hints as query string | `Identification` (+ `transcript`). Groq Whisper → LLM → LRCLIB. 40/h/IP |
+
+AI steps need `GROQ_API_KEY` on the server; without it `/identify` still matches tags and file names.
+Errors: `ai_unavailable` (503/502), `ai_rate_limited` (429), `payload_too_large` (413). See [LOCAL_MUSIC.md](LOCAL_MUSIC.md).
 
 ## Auth
 

@@ -5,6 +5,7 @@ import { ActivityIndicator, Keyboard, ScrollView, TextInput, useWindowDimensions
 import Animated, { FadeIn, useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGenres, useSearch } from '@/api/queries';
+import { useDeviceMusic } from '@/local/store';
 import type { Album, Artist, CatalogItem, Playlist, SearchResults, Track } from '@/api/types';
 import { useDockGeometry } from '@/components/dock/geometry';
 import { MediaCard } from '@/components/music/MediaCard';
@@ -198,6 +199,37 @@ function Results({ data, filter, onPick }: { data: SearchResults; filter: Filter
   );
 }
 
+const fold = (s: string) => s.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+/** Matching songs imported from the phone, shown above the catalog results. */
+function OnThisPhone({ q, onPick }: { q: string; onPick: () => void }) {
+  const all = useDeviceMusic((s) => s.tracks);
+  const matches = useMemo(() => {
+    const words = fold(q).split(/\s+/).filter(Boolean);
+    if (!words.length) return [];
+    return all.filter((t) => {
+      const hay = fold(`${t.title} ${t.artists.map((a) => a.name).join(' ')} ${t.album?.title ?? ''} ${t.local?.fileName ?? ''}`);
+      return words.every((w) => hay.includes(w));
+    });
+  }, [all, q]);
+  if (!matches.length) return null;
+  return (
+    <View style={{ marginBottom: 22 }}>
+      <SectionHeader title="On this phone" />
+      {matches.slice(0, 5).map((t, i) => (
+        <TrackRow
+          key={t.id}
+          track={t}
+          onPress={() => {
+            onPick();
+            void player.playQueue(matches, i, { type: 'local', id: 'device', title: 'On this phone' });
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
 export default function SearchScreen() {
   const colors = useColors();
   const styles = useStyles();
@@ -269,6 +301,7 @@ export default function SearchScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: 10, paddingBottom: g.contentInset }}
       >
+        {showResults && (filter === 'all' || filter === 'songs') ? <OnThisPhone q={q} onPick={onPick} /> : null}
         {showResults ? (
           search.isLoading ? (
             <ListSkeleton />

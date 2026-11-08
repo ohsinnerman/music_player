@@ -23,6 +23,7 @@ Indexes (unique emails, TTL on refresh tokens, etc.) are created automatically o
 | `CATALOG_PROVIDERS` | `audius,deezer` (default) — add `jamendo` with `JAMENDO_CLIENT_ID` |
 | `AUDIUS_API_KEY` | optional |
 | `ALLOW_REGISTRATION` | `false` if the server is only for you (after creating your account) |
+| `GROQ_API_KEY` | optional — AI identification + lyrics for songs imported from the phone ([LOCAL_MUSIC.md](LOCAL_MUSIC.md)) |
 
 See `backend/.env.example` for everything.
 

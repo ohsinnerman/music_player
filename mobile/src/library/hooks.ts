@@ -6,6 +6,7 @@ import { qk, queryClient } from '@/api/queries';
 import type { Playlist, Track, UserPlaylist } from '@/api/types';
 import { onSignedIn, useAuth } from '@/auth/store';
 import { toast } from '@/components/ui/Toast';
+import { isLocal, useDeviceMusic } from '@/local/store';
 import { type LocalPlaylist, useLocalLibrary } from './store';
 
 const isAuthed = () => useAuth.getState().status === 'authed';
@@ -27,13 +28,29 @@ const fromLocal = (p: LocalPlaylist): LibraryPlaylist => ({
 
 /* ───────────────────────── Likes ───────────────────────── */
 
+/** Liked songs imported from the device (always kept on the device, never synced). */
+function useLikedDeviceTracks(): Track[] {
+  const liked = useDeviceMusic((s) => s.liked);
+  const tracks = useDeviceMusic((s) => s.tracks);
+  return useMemo(() => {
+    const byId = new Map(tracks.map((t) => [t.id, t]));
+    return liked.map((id) => byId.get(id)).filter((t): t is Track => !!t);
+  }, [liked, tracks]);
+}
+
 export function useLikedTracks() {
   const authed = useAuth((s) => s.status === 'authed');
   const local = useLocalLibrary((s) => s.likes);
+  const device = useLikedDeviceTracks();
   const remote = useQuery({ queryKey: qk.likes, queryFn: endpoints.likes, enabled: authed, staleTime: 60_000 });
+  const remoteData = remote.data as Track[] | undefined;
+  const tracks = useMemo(() => {
+    const base = authed ? (remoteData ?? []) : local;
+    return device.length ? [...device, ...base] : base;
+  }, [authed, remoteData, local, device]);
   return authed
-    ? { tracks: (remote.data ?? []) as Track[], isLoading: remote.isLoading, refetch: remote.refetch }
-    : { tracks: local, isLoading: false, refetch: async () => undefined };
+    ? { tracks, isLoading: remote.isLoading, refetch: remote.refetch }
+    : { tracks, isLoading: false, refetch: async () => undefined };
 }
 
 export function useLikedIds(): Set<string> {
@@ -47,6 +64,10 @@ export function useIsLiked(id: string | undefined): boolean {
 }
 
 export async function toggleLike(track: Track, liked: boolean) {
+  if (isLocal(track)) {
+    useDeviceMusic.getState().toggleLike(track.id);
+    return;
+  }
   if (!isAuthed()) {
     useLocalLibrary.getState().setLikes((l) => (liked ? l.filter((t) => t.id !== track.id) : [track, ...l]));
     return;
@@ -83,9 +104,17 @@ export function useLibraryPlaylist(id: string) {
 
 const now = () => new Date().toISOString();
 
+/** Account playlists live on the server, which can't see files on this phone. */
+function serverSafe(tracks: Track[]): Track[] {
+  const ok = tracks.filter((t) => !isLocal(t));
+  if (ok.length < tracks.length) toast('Songs from this phone stay in your device library and can’t be added to synced playlists', 'info');
+  return ok;
+}
+
 export async function createPlaylist(title: string, tracks: Track[] = []): Promise<string | null> {
   const name = title.trim().slice(0, 80);
   if (!name) return null;
+  if (isAuthed()) tracks = serverSafe(tracks);
   if (!isAuthed()) {
     const id = Crypto.randomUUID();
     useLocalLibrary.getState().setPlaylists((p) => [{ id, title: name, tracks, createdAt: now(), updatedAt: now() }, ...p]);
@@ -102,6 +131,10 @@ export async function createPlaylist(title: string, tracks: Track[] = []): Promi
 }
 
 export async function addToPlaylist(id: string, tracks: Track[]) {
+  if (isAuthed()) {
+    tracks = serverSafe(tracks);
+    if (!tracks.length) return false;
+  }
   if (!isAuthed()) {
     useLocalLibrary.getState().setPlaylists((list) =>
       list.map((p) => {
@@ -179,7 +212,7 @@ export function useRecentlyPlayed(limit = 20) {
 
 export function recordPlay(track: Track) {
   useLocalLibrary.getState().pushHistory(track);
-  if (isAuthed()) endpoints.recordPlay(track.id).catch(() => undefined);
+  if (isAuthed() && !isLocal(track)) endpoints.recordPlay(track.id).catch(() => undefined);
 }
 
 /* ───────────────────────── Guest → account sync ───────────────────────── */
@@ -190,7 +223,10 @@ onSignedIn(async () => {
   try {
     // Oldest first so the server's "newest liked" order matches the device.
     for (const t of [...likes].reverse().slice(-300)) await endpoints.like(t.id).catch(() => undefined);
-    for (const p of playlists) await endpoints.createPlaylist(p.title, p.tracks.map((t) => t.id).slice(0, 100)).catch(() => undefined);
+    for (const p of playlists) {
+      const ids = p.tracks.filter((t) => !isLocal(t)).map((t) => t.id);
+      await endpoints.createPlaylist(p.title, ids.slice(0, 100)).catch(() => undefined);
+    }
     clearSynced();
     queryClient.invalidateQueries({ queryKey: ['me'] });
     toast('Your library is now synced to your account', 'success');

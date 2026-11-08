@@ -4,7 +4,8 @@
  * where a song came from.
  */
 
-export type ProviderId = 'audius' | 'deezer' | 'jamendo';
+/** 'local' = a file the user imported from their phone (never sent to the server's catalog). */
+export type ProviderId = 'audius' | 'deezer' | 'jamendo' | 'local';
 
 /** Image URLs at three sizes (~150px, ~500px, ~1000px). Any may be missing. */
 export interface Artwork {
@@ -40,6 +41,22 @@ export interface Track {
   genre?: string;
   playCount?: number;
   releaseDate?: string;
+  /** Present only for songs imported from the device. */
+  local?: LocalFileInfo;
+}
+
+export interface LocalFileInfo {
+  /** file:// or content:// URI the player streams from. */
+  uri: string;
+  fileName: string;
+  sizeBytes: number;
+  format: string;
+  codec?: string;
+  bitrateKbps?: number;
+  sampleRate?: number;
+  /** Raw tags as read from the file (before any identification). */
+  tags: { title?: string; artist?: string; album?: string; year?: string; genre?: string; trackNo?: number };
+  addedAt: string;
 }
 
 export interface Album {
@@ -133,7 +150,24 @@ export interface Lyrics {
   synced: LyricLine[] | null;
   plain: string | null;
   instrumental: boolean;
-  source: 'lrclib';
+  source: 'lrclib' | 'embedded';
+}
+
+export interface SongMatch {
+  title: string;
+  artist: string;
+  album?: string;
+  durationSec?: number;
+  confidence: 'high' | 'medium' | 'low';
+  source: 'tags' | 'filename' | 'search' | 'ai' | 'audio';
+}
+
+export interface Identification {
+  match: SongMatch | null;
+  lyrics: Lyrics | null;
+  ai: { used: boolean; available: boolean };
+  canListen: boolean;
+  transcript?: string;
 }
 
 /* ─────────── App-side additions ─────────── */
@@ -163,11 +197,12 @@ export interface ServerConfig {
   providers: { id: ProviderId; label: string; fullTracks: boolean }[];
   registration: boolean;
   version: number;
+  features?: { identify: boolean; ai: boolean; listen: boolean };
 }
 
 /** Where the current queue came from ("Playing from …"). */
 export interface PlayContext {
-  type: 'album' | 'playlist' | 'artist' | 'genre' | 'liked' | 'search' | 'home' | 'history' | 'radio' | 'queue';
+  type: 'album' | 'playlist' | 'artist' | 'genre' | 'liked' | 'search' | 'home' | 'history' | 'radio' | 'queue' | 'local';
   id?: string;
   title: string;
 }

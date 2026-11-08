@@ -1,7 +1,10 @@
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { bytesToBase64, base64ToBytes, utf16, utf8 } from './bytes';
+import { MAX_CLIP_BYTES, makeClip } from './clip';
 import { parseId3v2 } from './id3';
 import { looksLikeLrc, lrcToLines, memorySource, parseFilename, readTags } from './index';
 
@@ -178,5 +181,37 @@ describe('helpers', () => {
     expect(parseFilename('03. Clair de Lune.flac')).toEqual({ title: 'Clair de Lune', trackNo: 3 });
     expect(parseFilename('Arijit Singh – Tum Hi Ho [www.SongsPk.com].mp3')).toEqual({ artist: 'Arijit Singh', title: 'Tum Hi Ho', trackNo: undefined });
     expect(parseFilename('1999 - Prince.mp3').trackNo).toBeUndefined();
+  });
+});
+
+describe('makeClip', () => {
+  const run = (cmd: string, args: string[]) => spawnSync(cmd, args, { encoding: 'utf8' });
+  const hasFfmpeg = run('ffmpeg', ['-version']).status === 0;
+  const cases: [string, string][] = [
+    ['v23.mp3', 'audio/mpeg'],
+    ['tagged.flac', 'audio/flac'],
+    ['tagged.wav', 'audio/wav'],
+    ['vorbis.ogg', 'audio/ogg'],
+    ['song.opus', 'audio/opus'],
+    ['faststart.m4a', 'audio/mp4'],
+  ];
+  for (const [name, mime] of cases) {
+    it.skipIf(!hasFfmpeg)(`cuts a decodable clip from ${name}`, async () => {
+      const src = fx(name);
+      const clip = await makeClip(src, await readTags(src));
+      expect(clip?.mime).toBe(mime);
+      expect(clip!.bytes.length).toBeLessThanOrEqual(MAX_CLIP_BYTES);
+      const dir = mkdtempSync(join(tmpdir(), 'clip-'));
+      const out = join(dir, `clip.${name.split('.').pop()}`);
+      writeFileSync(out, clip!.bytes);
+      const r = run('ffmpeg', ['-v', 'error', '-i', out, '-f', 'null', '-']);
+      expect(r.status).toBe(0);
+      const probe = run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', out]);
+      expect(Number(probe.stdout.trim()) || 0.1).toBeGreaterThan(0);
+    });
+  }
+  it('refuses MP4 with moov after mdat (not decodable when cut)', async () => {
+    const src = fx('aac.m4a');
+    expect(await makeClip(src, await readTags(src))).toBeNull();
   });
 });

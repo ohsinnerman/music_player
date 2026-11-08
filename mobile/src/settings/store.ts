@@ -34,12 +34,14 @@ interface SettingsState {
   reduceTransparency: boolean;
   /** Animated artwork background in the player. */
   livingBackground: boolean;
+  /** Let the server "listen" to a short clip of an imported song to identify it. */
+  aiListen: boolean;
   recentSearches: string[];
   themeMode: ThemeMode;
   setThemeMode: (m: ThemeMode) => void;
   setServerUrl: (url: string) => void;
   setOnboarded: (v: boolean) => void;
-  toggle: (key: 'haptics' | 'reduceTransparency' | 'livingBackground') => void;
+  toggle: (key: 'haptics' | 'reduceTransparency' | 'livingBackground' | 'aiListen') => void;
   pushRecentSearch: (q: string) => void;
   clearRecentSearches: () => void;
 }
@@ -52,6 +54,7 @@ export const useSettings = create<SettingsState>()(
       haptics: true,
       reduceTransparency: false,
       livingBackground: true,
+      aiListen: true,
       recentSearches: [],
       themeMode: 'system',
       setThemeMode: (themeMode) => set({ themeMode }),
@@ -70,7 +73,8 @@ export const useSettings = create<SettingsState>()(
       name: 'aura.settings',
       storage: persistStorage,
       version: 1,
-      partialize: ({ serverUrl, onboarded, haptics, reduceTransparency, livingBackground, recentSearches, themeMode }) => ({
+      partialize: ({ serverUrl, onboarded, haptics, reduceTransparency, livingBackground, aiListen, recentSearches, themeMode }) => ({
+        aiListen,
         themeMode,
         serverUrl,
         onboarded,

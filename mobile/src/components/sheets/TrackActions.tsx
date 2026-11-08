@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import {
   Disc3,
+  FileAudio,
   Heart,
   ListEnd,
   ListPlus,
@@ -16,10 +17,13 @@ import {
 import { useState } from 'react';
 import { Keyboard, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { endpoints } from '@/api/endpoints';
+import { qk, queryClient } from '@/api/queries';
 import type { Track } from '@/api/types';
 import { addToPlaylist, createPlaylist, toggleLike, useIsLiked, usePlaylists } from '@/library/hooks';
 import { artistNames } from '@/lib/format';
 import { haptic } from '@/lib/haptics';
+import { getLocalLyrics, resetIdentity } from '@/local/identify';
+import { removeDeviceTracks } from '@/local/import';
 import { openAlbum, openArtist } from '@/lib/nav';
 import { player } from '@/player/engine';
 import { GUTTER, makeStyles, radius, useColors } from '@/theme';
@@ -66,6 +70,7 @@ function TrackActionsBody({ track, close, extra }: { track: Track; close: () => 
   const colors = useColors();
   const styles = useStyles();
   const liked = useIsLiked(track.id);
+  const local = !!track.local;
   const go = (fn: () => void) => () => {
     close();
     setTimeout(fn, 180);
@@ -87,6 +92,7 @@ function TrackActionsBody({ track, close, extra }: { track: Track; close: () => 
         }}
       />
       <Action icon={ListPlus} label="Add to playlist" onPress={go(() => openPlaylistPicker([track]))} />
+      {local ? null : (
       <Action
         icon={Radio}
         label="Start radio"
@@ -99,9 +105,27 @@ function TrackActionsBody({ track, close, extra }: { track: Track; close: () => 
           }
         })}
       />
-      {track.artists[0] ? <Action icon={UserRound} label="Go to artist" onPress={go(() => openArtist(track.artists[0]!.id))} /> : null}
-      {track.album ? <Action icon={Disc3} label="Go to album" onPress={go(() => openAlbum(track.album!.id))} /> : null}
-      <Action icon={MicVocal} label="Song credits" onPress={go(() => toast(`${track.title} — ${artistNames(track)}${track.genre ? ` · ${track.genre}` : ''}`))} />
+      )}
+      {!local && track.artists[0] ? <Action icon={UserRound} label="Go to artist" onPress={go(() => openArtist(track.artists[0]!.id))} /> : null}
+      {!local && track.album ? <Action icon={Disc3} label="Go to album" onPress={go(() => openAlbum(track.album!.id))} /> : null}
+      {local ? (
+        <>
+          <Action icon={FileAudio} label="File info" onPress={go(() => toast(fileInfo(track), 'info'))} />
+          <Action
+            icon={MicVocal}
+            label="Find lyrics again"
+            onPress={go(() => {
+              resetIdentity(track.id);
+              queryClient.removeQueries({ queryKey: qk.lyrics(track.id) });
+              getLocalLyrics(track, { force: true })
+                .then(() => toast('Lyrics found', 'success'))
+                .catch(() => toast('Still no lyrics for this one', 'info'));
+            })}
+          />
+        </>
+      ) : (
+        <Action icon={MicVocal} label="Song credits" onPress={go(() => toast(`${track.title} — ${artistNames(track)}${track.genre ? ` · ${track.genre}` : ''}`))} />
+      )}
       <Action
         icon={Share2}
         label="Share"
@@ -112,8 +136,18 @@ function TrackActionsBody({ track, close, extra }: { track: Track; close: () => 
       {extra?.map((e) => (
         <Action key={e.label} icon={e.icon} label={e.label} color={e.destructive ? colors.danger : colors.text} onPress={go(e.onPress)} />
       ))}
+      {local ? <Action icon={Trash2} label="Remove from Aura" color={colors.danger} onPress={go(() => removeDeviceTracks([track.id]))} /> : null}
     </View>
   );
+}
+
+function fileInfo(t: Track): string {
+  const l = t.local!;
+  const parts = [l.codec ?? l.format.toUpperCase()];
+  if (l.sampleRate) parts.push(`${(l.sampleRate / 1000).toFixed(l.sampleRate % 1000 ? 1 : 0)} kHz`);
+  if (l.bitrateKbps) parts.push(`${l.bitrateKbps} kbps`);
+  if (l.sizeBytes) parts.push(`${(l.sizeBytes / 1048576).toFixed(1)} MB`);
+  return `${l.fileName}\n${parts.join(' · ')}`;
 }
 
 export interface TrackActionExtra {

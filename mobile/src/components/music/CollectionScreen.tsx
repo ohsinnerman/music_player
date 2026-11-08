@@ -39,6 +39,8 @@ export interface CollectionScreenProps {
   onRetry?: () => void;
   numbered?: boolean;
   actions?: ReactNode;
+  /** Rendered under the play/shuffle row (filters, progress…). */
+  headerExtra?: ReactNode;
   footer?: ReactNode;
   empty?: ReactElement;
   trackExtraActions?: (t: Track) => TrackActionExtra[];
@@ -49,7 +51,7 @@ const AFlatList = Animated.FlatList<Track>;
 export function CollectionScreen(props: CollectionScreenProps) {
   const colors = useColors();
   const styles = useStyles();
-  const { title, kindLabel, subtitle, onSubtitlePress, artwork, customArt, wash, tracks, context, isLoading, error, onRetry, numbered, actions, footer, empty, trackExtraActions } = props;
+  const { title, kindLabel, subtitle, onSubtitlePress, artwork, customArt, wash, tracks, context, isLoading, error, onRetry, numbered, actions, headerExtra, footer, empty, trackExtraActions } = props;
   const { width: W } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const g = useDockGeometry();
@@ -135,6 +137,7 @@ export function CollectionScreen(props: CollectionScreenProps) {
           {tracks.length ? <PlayPauseIcon playing={isThisPlaying} size={24} color="#fff" /> : <Play size={24} color="#fff" fill="#fff" />}
         </PressableScale>
       </View>
+      {headerExtra}
     </View>
   );
 

@@ -8,6 +8,7 @@
 | [SECURITY.md](SECURITY.md) | Threat model and every security control, server and app |
 | [DESIGN.md](DESIGN.md) | Visual language, inspirations, tokens, glass, motion, components |
 | [MOBILE.md](MOBILE.md) | App internals: navigation, state, playback, library sync, performance |
+| [LOCAL_MUSIC.md](LOCAL_MUSIC.md) | Your own FLAC/WAV/MP3… files: tag reading, AI song identification (Groq) and lyrics |
 | [PROVIDERS.md](PROVIDERS.md) | Music sources and how to plug in your own catalogue |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Render, Vercel, Docker, MongoDB Atlas |
 | [BUILD_APK.md](BUILD_APK.md) | GitHub Actions APK, local builds, signing keys, installing |

@@ -309,6 +309,12 @@ export default function Settings() {
           <Toggle label="Haptics" value={s.haptics} onChange={() => s.toggle('haptics')} />
         </Group>
 
+        <Group title="Songs on this phone" footer="When a song’s tags and file name aren’t enough, Aura can send a 20-second clip to your server, which asks an AI to recognise it and fetch the lyrics. Clips aren’t stored.">
+          <Row label="Manage songs on this phone" onPress={() => router.push('/device')} />
+          <View style={styles.sep} />
+          <Toggle label="Listen to identify songs" hint="Uses AI on your server (Groq)" value={s.aiListen} onChange={() => s.toggle('aiListen')} />
+        </Group>
+
         <Group title="Storage">
           <Row
             label="Clear image cache"

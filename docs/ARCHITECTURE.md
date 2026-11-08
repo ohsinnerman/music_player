@@ -102,7 +102,8 @@ backend/
     domain/types.ts        The API contract
     http/                  routes + middleware (auth, validation, limits, errors)
     providers/             audius, deezer, jamendo, registry
-    services/              catalog (merge/rank/cache), lyrics (LRCLIB + LRC parser), genres
+    services/              catalog (merge/rank/cache), lyrics (LRCLIB + LRC parser), genres,
+                           identify (tags → LRCLIB → Groq LLM / Whisper), groq client
     security/              password (argon2id), tokens (JWT + refresh rotation)
     store/                 Store interface, memory + Mongo implementations
     lib/                   http client (SSRF guard), cache, errors, ids, logger
@@ -118,7 +119,9 @@ mobile/
     auth/                  auth store, secure token storage
     player/                engine, stores, sheet UI state
     library/               guest library store + unified hooks (local ⇄ server)
-    settings/              persisted settings, server URL validation
+    local/                 songs imported from the phone: tag reader + clipper (tags/), import,
+                           identify / lyrics resolution, store — see LOCAL_MUSIC.md
+    settings/              persisted settings (incl. appearance), server URL validation
     components/
       ui/                  Glass, Text, PressableScale, Sheet, Toast, TextField, TopBar…
       music/               TrackRow, MediaCard, HeroCarousel, Shelves, CollectionScreen…
