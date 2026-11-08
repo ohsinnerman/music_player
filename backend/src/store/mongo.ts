@@ -31,7 +31,13 @@ export function createMongoStore(uri: string, dbName: string): Store {
         serverSelectionTimeoutMS: 8000,
         retryWrites: true,
       }).connect();
-      const client = await g.__auraMongo;
+      let client: MongoClient;
+      try {
+        client = await g.__auraMongo;
+      } catch (e) {
+        g.__auraMongo = undefined; // don't cache a failed connection; retry next time
+        throw e;
+      }
       db = client.db(dbName);
       users = db.collection('users');
       tokens = db.collection('refresh_tokens');
