@@ -13,7 +13,7 @@ const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? '';
 const allowCleartext = process.env.AURA_ALLOW_CLEARTEXT === 'true';
 // CPU architectures to build. arm64-v8a covers practically every phone from the last 8+ years;
 // add armeabi-v7a for very old devices or x86_64 for emulators, e.g. AURA_ABIS=arm64-v8a,armeabi-v7a
-const abis = (process.env.AURA_ABIS ?? 'arm64-v8a').split(',').map((s) => s.trim()).filter(Boolean);
+const abis = (process.env.AURA_ABIS ?? 'arm64-v8a').split(',').map((s: string) => s.trim()).filter(Boolean);
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,

@@ -1,5 +1,4 @@
 import { CircleAlert, CircleCheck, Info } from 'lucide-react-native';
-import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInUp, FadeOutUp, LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,7 +32,6 @@ const TINT = { info: colors.text, success: colors.success, error: colors.danger 
 export function ToastHost() {
   const items = useToasts((s) => s.items);
   const insets = useSafeAreaInsets();
-  useEffect(() => undefined, []);
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { paddingTop: insets.top + 8, alignItems: 'center' }]}>
       {items.map((t) => {

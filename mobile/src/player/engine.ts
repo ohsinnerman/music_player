@@ -31,6 +31,7 @@ let askedNotifications = false;
 let resumeAt: number | null = null;
 let lastRecorded: string | null = null;
 let lastErrorIndex = -1;
+let lastMetaId: string | null = null;
 /** While rebuilding the native queue, ignore index events until this index shows up. */
 let pending: { index: number; until: number } | null = null;
 
@@ -63,6 +64,9 @@ function onIndex(index: number) {
   if (index < 0 || index >= s.queue.length) return;
   if (index !== s.index) usePlayer.setState({ index });
   const t = s.queue[index]!;
+  // Status events arrive ~4×/s; only react when the track actually changed.
+  if (lastMetaId === t.id) return;
+  lastMetaId = t.id;
   if (lockScreenActive) pl?.updateLockScreenMetadata(metadata(t));
   if (lastRecorded !== t.id) {
     lastRecorded = t.id;
@@ -124,6 +128,7 @@ async function prepareSession() {
 
 function activateLockScreen(t: Track) {
   const p = ensure();
+  lastMetaId = t.id;
   if (!lockScreenActive) {
     p.setActiveForLockScreen(true, metadata(t), { showNextTrack: true, showPreviousTrack: true });
     lockScreenActive = true;
