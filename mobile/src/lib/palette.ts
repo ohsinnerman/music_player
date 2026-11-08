@@ -108,18 +108,19 @@ export async function getPalette(url: string): Promise<Palette> {
 }
 
 export function usePalette(url: string | undefined): Palette {
-  const [palette, setPalette] = useState<Palette>(() => (url && cache.get(url)) || FALLBACK_PALETTE);
+  const [loaded, setLoaded] = useState<{ url: string; palette: Palette } | null>(null);
   useEffect(() => {
-    if (!url) return setPalette(FALLBACK_PALETTE);
+    if (!url || cache.has(url)) return;
     let alive = true;
-    const hit = cache.get(url);
-    if (hit) setPalette(hit);
-    else getPalette(url).then((p) => alive && setPalette(p));
+    getPalette(url).then((palette) => {
+      if (alive) setLoaded({ url, palette });
+    });
     return () => {
       alive = false;
     };
   }, [url]);
-  return palette;
+  if (!url) return FALLBACK_PALETTE;
+  return cache.get(url) ?? (loaded?.url === url ? loaded.palette : FALLBACK_PALETTE);
 }
 
 /** Hex → rgba string. */

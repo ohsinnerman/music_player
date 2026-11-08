@@ -12,7 +12,6 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
-import { scheduleOnRN } from 'react-native-worklets';
 import { ApiError } from '@/api/client';
 import { useLyrics } from '@/api/queries';
 import type { LyricLine, Track } from '@/api/types';
@@ -92,15 +91,15 @@ function Synced({ lines, height }: { lines: LyricLine[]; height: number }) {
   const ys = useRef<number[]>([]);
 
   useEffect(() => {
-    times.value = lines.map((l) => l.timeMs);
+    times.set(lines.map((l) => l.timeMs));
     ys.current = [];
-    offsets.value = [];
+    offsets.set([]);
   }, [lines, times, offsets]);
 
   const onLayout = useCallback(
     (i: number, y: number) => {
       ys.current[i] = y;
-      offsets.value = ys.current.slice();
+      offsets.set(ys.current.slice());
     },
     [offsets],
   );
@@ -119,10 +118,10 @@ function Synced({ lines, height }: { lines: LyricLine[]; height: number }) {
 
   const onScroll = useAnimatedScrollHandler({
     onBeginDrag: () => {
-      userScrollAt.value = Date.now();
+      userScrollAt.set(Date.now());
     },
     onMomentumEnd: () => {
-      userScrollAt.value = Date.now();
+      userScrollAt.set(Date.now());
     },
   });
 

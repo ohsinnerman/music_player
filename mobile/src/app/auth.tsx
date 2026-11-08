@@ -3,8 +3,6 @@ import { router } from 'expo-router';
 import { X } from 'lucide-react-native';
 import { type ComponentRef, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, type TextInput, View } from 'react-native';
-
-type InputRef = ComponentRef<typeof TextInput>;
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '@/api/client';
@@ -19,6 +17,7 @@ import { toast } from '@/components/ui/Toast';
 import { haptic } from '@/lib/haptics';
 import { colors, GUTTER, radius, spring } from '@/theme';
 
+type InputRef = ComponentRef<typeof TextInput>;
 type Mode = 'signup' | 'signin';
 
 function Segmented({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) {

@@ -87,8 +87,8 @@ const LikeButton = memo(function LikeButton({ track, size = 44 }: { track: Track
         fill={liked ? colors.accent : undefined}
         haptic="soft"
         onPress={() => {
-          pop.value = 0.7;
-          pop.value = withSpring(1, { damping: 8, stiffness: 300 });
+          pop.set(0.7);
+          pop.set(withSpring(1, { damping: 8, stiffness: 300 }));
           void toggleLike(track, liked);
         }}
       />

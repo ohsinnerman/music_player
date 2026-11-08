@@ -29,7 +29,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: android-apk-${{ github.ref }}
+  group: aura-apk-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -74,8 +74,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck
-        run: npx tsc --noEmit
+      - name: Typecheck & lint
+        run: |
+          npx tsc --noEmit
+          npx eslint src app.config.ts plugins
 
       - name: Generate native Android project
         run: npx expo prebuild --platform android --clean --no-install

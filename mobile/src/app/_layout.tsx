@@ -12,7 +12,7 @@ import { useFonts } from 'expo-font';
 import { DarkTheme, SplashScreen, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
-import { useEffect, useState } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -37,15 +37,11 @@ const navTheme = {
   colors: { ...DarkTheme.colors, background: colors.bg, card: colors.bg, primary: colors.accent, text: colors.text, border: colors.stroke },
 };
 
+const subscribeHydration = (cb: () => void) => useSettings.persist.onFinishHydration(cb);
+const isHydrated = () => useSettings.persist.hasHydrated();
+
 function useSettingsHydrated() {
-  const [ready, setReady] = useState(() => useSettings.persist.hasHydrated());
-  useEffect(() => {
-    if (ready) return;
-    const unsub = useSettings.persist.onFinishHydration(() => setReady(true));
-    if (useSettings.persist.hasHydrated()) setReady(true);
-    return unsub;
-  }, [ready]);
-  return ready;
+  return useSyncExternalStore(subscribeHydration, isHydrated, isHydrated);
 }
 
 function Shell() {

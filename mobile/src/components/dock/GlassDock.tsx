@@ -1,9 +1,9 @@
-import { usePathname } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import { Compass, House, Library, type LucideIcon, Search } from 'lucide-react-native';
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { create } from 'zustand';
 import Animated, { interpolate, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
-import { router } from 'expo-router';
 import { chrome } from '@/lib/chrome';
 import { goTab } from '@/lib/nav';
 import { colors, fonts, spring } from '@/theme';
@@ -18,6 +18,9 @@ const TABS: { key: 'index' | 'explore' | 'library'; label: string; icon: LucideI
 ];
 
 const HIDDEN_ON = ['/onboarding', '/auth', '/settings'];
+
+/** The tab to highlight while a detail page (album, artist…) is on top. */
+const useLastTab = create<{ index: number }>()(() => ({ index: 0 }));
 
 function tabIndexFor(path: string): number | null {
   if (path === '/' || path === '/index') return 0;
@@ -59,10 +62,12 @@ const TabButton = memo(function TabButton({ i, active, onPress, width }: { i: nu
 export function GlassDock() {
   const g = useDockGeometry();
   const path = usePathname();
-  const lastTab = useRef(0);
   const current = tabIndexFor(path);
-  if (current !== null) lastTab.current = current;
-  const active = current ?? lastTab.current;
+  const lastTab = useLastTab((st) => st.index);
+  useEffect(() => {
+    if (current !== null) useLastTab.setState({ index: current });
+  }, [current]);
+  const active = current ?? lastTab;
   const hidden = HIDDEN_ON.some((p) => path.startsWith(p));
 
   const lensX = useSharedValue(active);

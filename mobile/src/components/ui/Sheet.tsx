@@ -54,14 +54,14 @@ export function SheetHost() {
     activeOffsetY: 8,
     onUpdate: (e) => {
       'worklet';
-      y.value = Math.max(0, e.translationY);
+      y.set(Math.max(0, e.translationY));
     },
     onDeactivate: (e) => {
       'worklet';
       if (e.translationY > 120 || e.velocityY > 900) {
         scheduleOnRN(closeSheet);
       } else {
-        y.value = withSpring(0, spring.sheet);
+        y.set(withSpring(0, spring.sheet));
       }
     },
   });
