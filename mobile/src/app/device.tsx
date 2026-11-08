@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { FilePlus2, FolderOpen, FolderPlus, Smartphone, Sparkles } from 'lucide-react-native';
+import { AudioWaveform, FilePlus2, FolderOpen, FolderPlus, Smartphone, Sparkles } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, useAnimatedStyle, withTiming } from 'react-native-reanimated';
@@ -10,12 +10,14 @@ import { IconButton } from '@/components/ui/IconButton';
 import { EmptyState } from '@/components/ui/States';
 import { Text } from '@/components/ui/Text';
 import { toast } from '@/components/ui/Toast';
+import { assess, specOf } from '@/lib/quality';
 import { findAllLyrics } from '@/local/identify';
 import { importFiles, importFolder } from '@/local/import';
 import { type ImportProgress, useDeviceMusic } from '@/local/store';
 import { GUTTER, makeStyles, radius, useColors } from '@/theme';
 
 type Sort = 'recent' | 'title' | 'artist' | 'album';
+type QualityFilter = 'all' | 'lossless' | 'hires';
 const SORTS: { key: Sort; label: string }[] = [
   { key: 'recent', label: 'Recently added' },
   { key: 'title', label: 'Title' },
@@ -68,7 +70,21 @@ export default function DeviceMusicScreen() {
   const importing = useDeviceMusic((s) => s.importing);
   const batch = useDeviceMusic((s) => s.lyricsBatch);
   const [sort, setSort] = useState<Sort>('recent');
-  const sorted = useMemo(() => sortTracks(tracks, sort), [tracks, sort]);
+  const [qf, setQf] = useState<QualityFilter>('all');
+  const tiers = useMemo(() => new Map(tracks.map((t) => [t.id, assess(specOf(t)).tier])), [tracks]);
+  const counts = useMemo(() => {
+    let hires = 0;
+    let lossless = 0;
+    tiers.forEach((t) => {
+      if (t === 'hires') hires++;
+      else if (t === 'lossless') lossless++;
+    });
+    return { hires, lossless, lossy: tracks.length - hires - lossless };
+  }, [tiers, tracks.length]);
+  const sorted = useMemo(() => {
+    const list = qf === 'all' ? tracks : tracks.filter((t) => (qf === 'hires' ? tiers.get(t.id) === 'hires' : tiers.get(t.id) === 'hires' || tiers.get(t.id) === 'lossless'));
+    return sortTracks(list, sort);
+  }, [tracks, sort, qf, tiers]);
 
   const findAll = async () => {
     if (batch) {
@@ -104,11 +120,23 @@ export default function DeviceMusicScreen() {
         <View style={{ alignSelf: 'stretch' }}>
           {importing ? <Progress p={importing} verb="Reading" /> : null}
           {batch && !importing ? <Progress p={batch} verb="Finding lyrics" /> : null}
+          {tracks.length ? (
+            <View style={styles.summary}>
+              <AudioWaveform size={15} color={colors.textTertiary} />
+              <Text variant="footnote" tone="secondary">
+                {[counts.hires ? `${counts.hires} Hi-Res` : null, counts.lossless ? `${counts.lossless} Lossless` : null, counts.lossy ? `${counts.lossy} lossy` : null].filter(Boolean).join(' · ')}
+              </Text>
+            </View>
+          ) : null}
           {tracks.length > 1 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sorts}>
               {SORTS.map((s) => (
                 <Chip key={s.key} label={s.label} active={sort === s.key} onPress={() => setSort(s.key)} />
               ))}
+              {counts.hires + counts.lossless > 0 && counts.lossy > 0 ? (
+                <Chip label="Lossless only" active={qf === 'lossless'} onPress={() => setQf(qf === 'lossless' ? 'all' : 'lossless')} />
+              ) : null}
+              {counts.hires > 0 && counts.hires < tracks.length ? <Chip label="Hi-Res" active={qf === 'hires'} onPress={() => setQf(qf === 'hires' ? 'all' : 'hires')} /> : null}
             </ScrollView>
           ) : null}
         </View>
@@ -130,6 +158,7 @@ export default function DeviceMusicScreen() {
 const useStyles = makeStyles((colors) => ({
   art: { width: 230, height: 230, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
   sorts: { gap: 8, paddingHorizontal: GUTTER, paddingVertical: 6 },
+  summary: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: GUTTER, marginBottom: 6 },
   progress: { marginHorizontal: GUTTER, marginBottom: 10, padding: 14, borderRadius: radius.md, backgroundColor: colors.fill, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.strokeStrong, gap: 10 },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   track: { height: 4, borderRadius: 2, backgroundColor: colors.fillStrong, overflow: 'hidden' },

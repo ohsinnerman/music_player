@@ -46,3 +46,29 @@ It's protecting you: set `JWT_SECRET` (32+ chars) and `MONGODB_URI`, and don't s
 Open the failed step's log in **Actions**. Common causes: a typo in secrets (keystore password/alias),
 or a dependency that needs `npm ci` to be re-run after editing `package.json` without updating
 `package-lock.json`.
+
+### Adding songs: "No audio files found there" / folder looks empty
+Pick the folder that actually contains the music (Android's picker can't select the root of internal
+storage or the Downloads root on some phones — choose a subfolder). Supported: FLAC, WAV, MP3, M4A
+(AAC/ALAC), OGG, Opus, AIFF. Up to 3000 files per folder, 8 levels deep.
+
+### An imported song says "Couldn’t open this file"
+The file was moved, renamed or deleted, or the SD card was removed. Add it again from its new place
+(⋯ → Remove from Aura, then add it).
+
+### Imported song shows the wrong title, or no lyrics
+Open lyrics and use **Search again**, or **Listen & identify** to let the server hear a 20-second clip.
+Lyrics need your server to be reachable. AI identification needs `GROQ_API_KEY` on the server
+(`GET /v1/config` should show `"ai": true`). Some songs simply aren't in LRCLIB yet.
+
+### "AI identification is not configured correctly on this server"
+The Groq key is wrong or revoked. Update `GROQ_API_KEY` in your host's environment and redeploy.
+"The AI service is busy" means Groq rate-limited the key; try again in a minute.
+
+### Quality sheet says "Unknown output"
+That APK was built before the audio-route module existed (or you're on the web preview). Install the
+latest APK. The badge and file details still work.
+
+### Hi-Res file shows "24-bit → 16-bit" and "96 → 48 kHz"
+That's accurate: Android's shared mixer runs at 48 kHz and the player decodes to 16-bit PCM. It's
+inaudible in practice; a USB DAC gets closest to the original. See [AUDIO_QUALITY.md](AUDIO_QUALITY.md).

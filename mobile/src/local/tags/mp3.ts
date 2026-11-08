@@ -63,14 +63,26 @@ export function mp3Info(head: Uint8Array, audioBytes: number) {
   const sideInfo = frame.version === 3 ? (frame.channels === 1 ? 17 : 32) : frame.channels === 1 ? 9 : 17;
   const x = offset + 4 + sideInfo;
   let frames: number | undefined;
+  let encoder: string | undefined;
+  let vbr = false;
   const tag = ascii(head, x, 4);
   if (tag === 'Xing' || tag === 'Info') {
     const flags = u32be(head, x + 4);
     if (flags & 1) frames = u32be(head, x + 8);
+    // LAME/Lavc extension follows the Xing fields.
+    const lame = x + 8 + (flags & 1 ? 4 : 0) + (flags & 2 ? 4 : 0) + (flags & 4 ? 100 : 0) + (flags & 8 ? 4 : 0);
+    const enc = ascii(head, lame, 9).replace(/[^\x20-\x7e]/g, '').trim();
+    if (/^(LAME|Lavc|Lavf|GOGO|L3\.99)/.test(enc)) encoder = enc;
+    const method = (head[lame + 9] ?? 0) & 0x0f;
+    vbr = tag === 'Xing' && !(method === 1 || method === 8);
   } else if (ascii(head, offset + 36, 4) === 'VBRI') {
     frames = u32be(head, offset + 36 + 14);
+    vbr = true;
+    encoder = 'Fraunhofer (VBRI)';
   }
   const durationSec = frames ? (frames * frame.samplesPerFrame) / frame.sampleRate : ((audioBytes - offset) * 8) / (frame.bitrate * 1000);
-  const bitrateKbps = frames && durationSec > 0 ? Math.round(((audioBytes - offset) * 8) / durationSec / 1000) : frame.bitrate;
-  return { durationSec, sampleRate: frame.sampleRate, channels: frame.channels, bitrateKbps, codec: `MPEG-${frame.version === 3 ? 1 : 2} Layer ${frame.layer}` };
+  // CBR: the frame header is exact. VBR: average over the whole stream.
+  const bitrateKbps = vbr && frames && durationSec > 0 ? Math.round(((audioBytes - offset) * 8) / durationSec / 1000) : frame.bitrate;
+  const codec = frame.layer === 3 ? 'MP3' : `MPEG-${frame.version === 3 ? 1 : 2} Layer ${frame.layer}`;
+  return { durationSec, sampleRate: frame.sampleRate, channels: frame.channels, bitrateKbps, codec, encoder, vbr };
 }

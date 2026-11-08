@@ -121,6 +121,29 @@ describe('readTags', () => {
     near(t.durationSec, 2, 0.01);
   });
 
+  it('audio quality: bit depth, sample rate, lossless, encoder', async () => {
+    const flac = await readTags(fx('hires.flac'));
+    expect(flac).toMatchObject({ codec: 'FLAC', lossless: true, bitsPerSample: 24, sampleRate: 96000, channels: 1 });
+    expect(flac.encoder).toMatch(/Lavf|libFLAC/);
+    near(flac.durationSec, 0.5, 0.01);
+
+    const alac = await readTags(fx('hires.m4a'));
+    expect(alac).toMatchObject({ codec: 'ALAC', lossless: true, bitsPerSample: 24, sampleRate: 96000 });
+
+    const wav = await readTags(fx('hires.wav'));
+    expect(wav).toMatchObject({ codec: 'PCM', lossless: true, bitsPerSample: 24, sampleRate: 48000 });
+
+    const cbr = await readTags(fx('cbr320.mp3'));
+    expect(cbr).toMatchObject({ codec: 'MP3', lossless: false, bitrateKbps: 320, sampleRate: 44100, vbr: false });
+    expect(cbr.bitsPerSample).toBeUndefined();
+    expect(cbr.encoder).toMatch(/^(LAME|Lavc)/);
+
+    const aac = await readTags(fx('aac.m4a'));
+    expect(aac).toMatchObject({ codec: 'AAC', lossless: false });
+    const lo = await readTags(fx('tagged.flac'));
+    expect(lo).toMatchObject({ bitsPerSample: 16, lossless: true });
+  });
+
   it('never throws on junk', async () => {
     const junk = new Uint8Array(4096).map((_, i) => (i * 7919) & 0xff);
     await expect(readTags(memorySource(junk))).resolves.toMatchObject({ format: 'unknown' });

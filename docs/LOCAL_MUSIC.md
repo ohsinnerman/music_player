@@ -21,6 +21,7 @@ mobile/src/local/tags   ── reads only the bytes it needs, never the whole fi
   Xing/VBRI, STREAMINFO, granule positions, mvhd or the data chunk.
         │
         ├─ title / artist / album from tags, or "Artist - Title" from the file name
+        ├─ codec, bit depth, sample rate, bitrate, encoder → quality badge (AUDIO_QUALITY.md)
         ├─ cover art saved as a small image in the app's folder
         └─ lyrics inside the file (LRC in USLT, SYLT, LYRICS, ©lyr) → used as-is, offline
 ```
@@ -74,6 +75,12 @@ Groq are mapped to generic messages (`ai_unavailable`, `ai_rate_limited`).
 - Audio clips are only sent when listening is enabled, are forwarded to Groq for
   transcription, and are not stored by Aura's server.
 - LLM output is validated (zod) and only ever used as a lyrics search query.
+
+## Quality
+
+Every imported song gets a quality tier — **Hi-Res Lossless**, **Lossless**, or the bitrate for lossy
+files — shown in lists and the player, with a full *How it’s playing* breakdown on tap. See
+[AUDIO_QUALITY.md](AUDIO_QUALITY.md).
 
 ## Limits
 

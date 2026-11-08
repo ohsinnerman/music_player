@@ -2,6 +2,7 @@ import { Directory, File } from 'expo-file-system';
 import { Platform } from 'react-native';
 import type { Lyrics, Track } from '@/api/types';
 import { toast } from '@/components/ui/Toast';
+import { usePlayer } from '@/player/store';
 import { deleteLocalFiles, openSource, saveArtwork, writeLyricsFile } from './files';
 import { useDeviceMusic } from './store';
 import { looksLikeLrc, lrcToLines, parseFilename, readTags, type TagResult } from './tags';
@@ -86,6 +87,11 @@ async function toTrack(file: File): Promise<Track | null> {
       codec: tags.codec,
       bitrateKbps: tags.bitrateKbps,
       sampleRate: tags.sampleRate,
+      bitsPerSample: tags.bitsPerSample,
+      channels: tags.channels,
+      lossless: tags.lossless,
+      encoder: tags.encoder,
+      vbr: tags.vbr,
       tags: { title: tags.title, artist: tags.artist, album: tags.album, year: tags.year, genre: tags.genre, trackNo: tags.trackNo },
       addedAt: new Date().toISOString(),
     },
@@ -192,4 +198,37 @@ export function removeDeviceTracks(ids: string[]) {
   useDeviceMusic.getState().remove(ids);
   ids.forEach(deleteLocalFiles);
   toast(ids.length === 1 ? 'Removed from Aura · the file is still on your phone' : `Removed ${ids.length} songs from Aura`, 'success');
+}
+
+/**
+ * Re-read a file's audio properties (format, bit depth, rate, encoder…). Used
+ * by the Audio quality sheet so songs imported by older versions get the full
+ * details, and so the numbers always describe the file as it is now.
+ */
+export async function refreshFileInfo(track: Track): Promise<Track> {
+  if (!track.local || Platform.OS === 'web') return track;
+  const src = openSource(new File(track.local.uri));
+  let tags: TagResult;
+  try {
+    tags = await readTags(src);
+  } finally {
+    src.close();
+  }
+  const local = {
+    ...track.local,
+    format: tags.format,
+    codec: tags.codec,
+    bitrateKbps: tags.bitrateKbps,
+    sampleRate: tags.sampleRate,
+    bitsPerSample: tags.bitsPerSample,
+    channels: tags.channels,
+    lossless: tags.lossless,
+    encoder: tags.encoder,
+    vbr: tags.vbr,
+  };
+  const patch: Partial<Track> = { local, durationMs: track.durationMs || Math.round((tags.durationSec ?? 0) * 1000) };
+  useDeviceMusic.getState().patchTrack(track.id, patch);
+  const q = usePlayer.getState().queue;
+  if (q.some((t) => t.id === track.id)) usePlayer.setState({ queue: q.map((t) => (t.id === track.id ? { ...t, ...patch } : t)) });
+  return { ...track, ...patch };
 }

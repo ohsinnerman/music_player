@@ -20,6 +20,9 @@ npm run dev                 # http://localhost:4000  (hot reload)
 
 Check it: `curl http://localhost:4000/v1/health` → `{"data":{"status":"ok",…}}`
 
+To try AI song identification locally, put a Groq key in `.env` (`GROQ_API_KEY=…`, never commit it).
+Without one, `/v1/identify` still matches tags and file names.
+
 With no `MONGODB_URI` the server uses an in-memory store (accounts vanish on restart) and an
 ephemeral JWT secret. That's fine for development; production refuses to start like that.
 
@@ -35,7 +38,8 @@ lyrics and a 20-second test tone, so you can work on the UI with no internet. Ne
 ### Tests
 
 ```bash
-npm test          # 30+ API tests: auth, rotation & reuse detection, isolation, validation, SSRF…
+npm test          # ~50 API tests: auth, rotation & reuse detection, isolation, validation, SSRF,
+                  # identify (tags / file name / mocked Groq LLM + Whisper)…
 npm run typecheck
 ```
 
@@ -72,6 +76,13 @@ EXPO_PUBLIC_API_URL=http://localhost:4000 AURA_ALLOW_CLEARTEXT=true npx expo sta
 
 Handy for layout work; the native-only parts (Skia background, lock-screen controls) use web fallbacks.
 
+### Mobile tests
+
+```bash
+cd mobile && npm test      # tag reader, clip cutter, quality tiers / signal path (vitest)
+npx tsc --noEmit && npx eslint src
+```
+
 ## 3. Using the app
 
 - First launch shows onboarding → **Continue as guest** or create an account.
@@ -79,7 +90,10 @@ Handy for layout work; the native-only parts (Skia background, lock-screen contr
   **Test & save**.
 - Long-press any song for actions (play next, add to playlist, radio, go to artist…).
 - Swipe the mini player left/right to skip, up to open. Drag the full player down to close.
-- In the player: 🎤 lyrics, ☰ queue.
+- In the player: 🎤 lyrics, ☰ queue, and the quality badge in the middle (tap it for *How it’s playing*).
+- **Library → On this phone** → add files or a folder of your own music (FLAC, WAV, MP3…). Open
+  lyrics on one of them and Aura identifies the song and finds them ([LOCAL_MUSIC.md](LOCAL_MUSIC.md)).
+- **Settings → Appearance**: System / Light / Dark.
 
 ## 4. Get an APK
 

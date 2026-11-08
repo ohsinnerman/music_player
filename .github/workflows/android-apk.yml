@@ -82,10 +82,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck & lint
+      - name: Typecheck, lint & unit tests
         run: |
           npx tsc --noEmit
-          npx eslint src app.config.ts plugins
+          npx eslint src app.config.ts plugins modules
+          npm test
 
       - name: Generate native Android project
         run: npx expo prebuild --platform android --clean --no-install

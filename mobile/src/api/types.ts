@@ -54,6 +54,12 @@ export interface LocalFileInfo {
   codec?: string;
   bitrateKbps?: number;
   sampleRate?: number;
+  bitsPerSample?: number;
+  channels?: number;
+  lossless?: boolean;
+  /** Encoder / writer ("LAME3.100", "reference libFLAC 1.4.3"). */
+  encoder?: string;
+  vbr?: boolean;
   /** Raw tags as read from the file (before any identification). */
   tags: { title?: string; artist?: string; album?: string; year?: string; genre?: string; trackNo?: number };
   addedAt: string;

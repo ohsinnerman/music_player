@@ -34,6 +34,8 @@ export function parseVorbisComments(b: Uint8Array): Partial<TagResult> {
   let p = 0;
   if (b.length < 8) return out;
   const vendorLen = u32le(b, p);
+  const vendor = clean(utf8(b.subarray(4, 4 + Math.min(vendorLen, 200))));
+  if (vendor) out.encoder = vendor;
   p += 4 + vendorLen;
   if (p + 4 > b.length) return out;
   const count = u32le(b, p);

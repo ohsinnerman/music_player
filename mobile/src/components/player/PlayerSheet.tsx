@@ -28,6 +28,8 @@ import { useSettings } from '@/settings/store';
 import { GUTTER, ThemeScope, darkColors, makeStyles, spring, useColors } from '@/theme';
 import { useDockGeometry } from '../dock/geometry';
 import { PreviewBadge } from '../music/Badges';
+import { openAudioQuality } from '../quality/AudioQualitySheet';
+import { QualityBadge } from '../quality/QualityBadge';
 import { openSleepTimer } from '../sheets/SleepTimer';
 import { openTrackActions } from '../sheets/TrackActions';
 import { Glass } from '../ui/Glass';
@@ -455,15 +457,9 @@ export function PlayerSheet() {
               onPress={() => setPanel('lyrics')}
               background={panel === 'lyrics' ? 'rgba(255,255,255,0.12)' : undefined}
             />
-            <View style={styles.sourceChip}>
-              <Text variant="label" tone="tertiary" numberOfLines={1}>
-                {track.local
-                  ? `On this phone · ${track.local.codec ?? track.local.format.toUpperCase()}`
-                  : track.streamKind === 'full'
-                    ? `Full track · ${track.provider}`
-                    : `30s preview · ${track.provider}`}
-              </Text>
-            </View>
+            <PressableScale onPress={() => openAudioQuality(track)} scaleTo={0.94} accessibilityLabel="Audio quality and signal path" style={{ flexShrink: 1 }}>
+              <QualityBadge track={track} />
+            </PressableScale>
             <IconButton
               icon={ListMusic}
               label="Queue"
@@ -506,7 +502,6 @@ const useStyles = makeStyles((colors) => ({
   panelBody: { position: 'absolute', left: 0, right: 0 },
   abs: { position: 'absolute' },
   bottomBar: { position: 'absolute', height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sourceChip: { paddingHorizontal: 12, height: 26, borderRadius: 13, borderWidth: StyleSheet.hairlineWidth, borderColor: darkColors.strokeStrong, justifyContent: 'center' },
   art: { position: 'absolute', left: 0, top: 0, overflow: 'hidden', backgroundColor: colors.surface },
   artShadow: { shadowColor: '#000', shadowRadius: 30, shadowOffset: { width: 0, height: 18 } },
 }));

@@ -33,6 +33,12 @@ always on the UI thread.
 | `glassTint` | `rgba(22,22,28,0.52)` | Over blur |
 | `success` / `danger` / `warning` | `#3DDC97` / `#FF6B6B` / `#FFB13B` | Feedback only |
 
+**Light theme** (`lightColors`, Settings → Appearance: System / Light / Dark) — white `#FFFFFF`
+background, `#0B0B0F` text with 62 / 44 % secondary/tertiary, ink-tinted fills instead of white ones,
+ember accent nudged to `#F04824` for contrast on white, light blur tint and a bright glass rim. Styles are
+written once as `makeStyles((colors) => …)` and cached per palette. The **full player stays dark** in
+light mode (`<ThemeScope scheme="dark">`): it sits on artwork colour, and the lyrics read best light-on-dark.
+
 The player and detail pages add **dynamic colour** extracted from the cover on-device
 (`lib/palette.ts`): `dominant`, `vibrant`, `dark` (safe under white text) and `light`.
 
@@ -90,13 +96,23 @@ reduce-motion is on.
 opacity/scale; auto-scroll keeps the active line ~30% from the top and pauses for 3.5 s after you
 scroll manually; tap a line to seek. A pulsing "• • •" fills long intros.
 
+**Quality badge** — the player's bottom-bar chip: gold `HI-RES 24/96` for hi-res lossless,
+`LOSSLESS 16/44.1`, or a plain `MP3 320`. Tapping it opens the **Audio quality** sheet: a tier header
+with a 5-bar meter, a vertical *How it's playing* stepper (file → decode → mixer → output) whose dots
+use `success` / `warning` / `danger` for clean / compromise / lossy, a verdict card and a details grid.
+Lists show a tiny `HI-RES` / `LOSSLESS` tag, styled like the preview tag. Gold is the only extra hue and is
+reserved for Hi-Res. See [AUDIO_QUALITY.md](AUDIO_QUALITY.md).
+
+**On this phone** — blue-gradient collection art (the one non-artwork colour block, so device music is
+recognisable at a glance), add-files / add-folder / find-lyrics actions, a progress card during import.
+
 **Scrubber** — no thumb; the bar thickens 5→10 dp while dragged, labels follow the finger, seeking
 happens on release.
 
 ## Accessibility
 
 - All icon buttons have labels and ≥44 dp targets; rows describe "title by artist" and hint at long-press.
-- Text scales up to 135%; colours meet contrast on the dark background.
+- Text scales up to 135%; colours meet contrast on both the dark and the light background.
 - Reduce motion: living background and onboarding wall stop moving.
 - Live regions for toasts and form errors.
 

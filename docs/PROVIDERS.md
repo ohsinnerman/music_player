@@ -36,8 +36,11 @@ results, caches them, and skips any provider that fails.
 
 ## Plugging in your own music
 
-You mentioned getting music "from somewhere else" later. Here's the path, e.g. for a folder of MP3s
-on a server or S3 bucket you have rights to:
+> **Files already on your phone?** You don't need a provider — use **Library → On this phone**
+> ([LOCAL_MUSIC.md](LOCAL_MUSIC.md)). Note that `'local'` is a reserved `ProviderId` in the app for
+> those files; it never reaches the server catalogue.
+
+For a catalogue hosted *on a server* (a folder of MP3s on a server or an S3 bucket you have rights to):
 
 1. **Add the id.** In `backend/src/domain/types.ts` add `'mine'` to `ProviderId`, and in
    `backend/src/lib/ids.ts` add `mine` to `ID_PATTERN`. Mirror the type in `mobile/src/api/types.ts`.

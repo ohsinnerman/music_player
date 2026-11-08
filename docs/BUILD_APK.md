@@ -17,6 +17,10 @@ touches `mobile/`, and whenever you click **Run workflow**.
 
 Builds take ~15–25 minutes (Gradle is cached after the first run).
 
+The build also compiles the app's own native module, `mobile/modules/aura-audio-route` (Kotlin), which
+Expo autolinks from `mobile/modules/` during prebuild — nothing to configure. The workflow runs the
+mobile unit tests (`npm test`) before building.
+
 ### Your own signing key (recommended)
 
 Without secrets, the APK is signed with the template's debug key — fine for your phone, but anyone

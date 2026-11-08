@@ -30,7 +30,15 @@ export interface TagResult {
   durationSec?: number;
   sampleRate?: number;
   channels?: number;
+  /** Bits per sample of the decoded PCM (lossless formats; undefined for lossy). */
+  bitsPerSample?: number;
   bitrateKbps?: number;
+  /** True for FLAC, ALAC, WAV/AIFF PCM. */
+  lossless?: boolean;
+  /** Encoder / writer, e.g. "LAME3.100", "reference libFLAC 1.4.3". */
+  encoder?: string;
+  /** Variable bitrate (lossy formats). */
+  vbr?: boolean;
   /** Unsynced lyrics text; may itself be LRC (many taggers put LRC in USLT). */
   lyrics?: string;
   /** Time-stamped lyrics from SYLT / SYNCEDLYRICS. */

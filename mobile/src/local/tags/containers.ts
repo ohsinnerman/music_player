@@ -23,6 +23,7 @@ export async function readFlac(src: ByteSource, start: number): Promise<Partial<
       if (type === 0 && d.length >= 18) {
         const sampleRate = (d[10]! << 12) | (d[11]! << 4) | (d[12]! >> 4);
         const channels = ((d[12]! >> 1) & 7) + 1;
+        out.bitsPerSample = (((d[12]! & 1) << 4) | (d[13]! >> 4)) + 1;
         const total = (d[13]! & 0x0f) * 2 ** 32 + u32be(d, 14);
         out.sampleRate = sampleRate;
         out.channels = channels;
@@ -204,6 +205,16 @@ export async function readMp4(src: ByteSource): Promise<Partial<TagResult>> {
       out.codec = entry.type === 'alac' ? 'ALAC' : entry.type === 'mp4a' ? 'AAC' : entry.type;
       out.channels = u16be(moov, entry.start + 16) || undefined;
       out.sampleRate = u16be(moov, entry.start + 24) || undefined;
+      if (entry.type === 'alac') {
+        out.bitsPerSample = u16be(moov, entry.start + 18) || undefined;
+        // ALACSpecificConfig has the real bit depth / rate (the entry's rate field tops out at 65535 Hz).
+        const cfg = atoms(moov, entry.start + 28, entry.end).find((x) => x.type === 'alac');
+        if (cfg && cfg.end - cfg.start >= 28) {
+          out.bitsPerSample = moov[cfg.start + 9] || out.bitsPerSample;
+          out.channels = moov[cfg.start + 13] || out.channels;
+          out.sampleRate = u32be(moov, cfg.start + 24) || out.sampleRate;
+        }
+      }
     }
   }
 
@@ -299,12 +310,14 @@ export async function readRiff(src: ByteSource, big: boolean): Promise<Partial<T
       out.channels = u16le(d, 2);
       out.sampleRate = u32le(d, 4);
       byteRate = u32le(d, 8);
+      out.bitsPerSample = u16le(d, 14) || undefined;
       const fmt = u16le(d, 0);
       out.codec = fmt === 1 || fmt === 0xfffe ? 'PCM' : fmt === 3 ? 'PCM float' : `WAV (0x${fmt.toString(16)})`;
     } else if (id === 'COMM' && size >= 18) {
       const d = await src.read(body, 18);
       out.channels = u16be(d, 0);
       const frames = u32be(d, 2);
+      out.bitsPerSample = u16be(d, 6) || undefined;
       const rate = ext80(d.subarray(8, 18));
       if (rate > 0) {
         out.sampleRate = Math.round(rate);

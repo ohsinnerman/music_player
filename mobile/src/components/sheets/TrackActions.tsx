@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import {
+  AudioWaveform,
   Disc3,
-  FileAudio,
   Heart,
   ListEnd,
   ListPlus,
@@ -27,6 +27,7 @@ import { removeDeviceTracks } from '@/local/import';
 import { openAlbum, openArtist } from '@/lib/nav';
 import { player } from '@/player/engine';
 import { GUTTER, makeStyles, radius, useColors } from '@/theme';
+import { openAudioQuality } from '../quality/AudioQualitySheet';
 import { Artwork } from '../ui/Artwork';
 import { Button } from '../ui/Button';
 import { PressableScale } from '../ui/PressableScale';
@@ -108,9 +109,9 @@ function TrackActionsBody({ track, close, extra }: { track: Track; close: () => 
       )}
       {!local && track.artists[0] ? <Action icon={UserRound} label="Go to artist" onPress={go(() => openArtist(track.artists[0]!.id))} /> : null}
       {!local && track.album ? <Action icon={Disc3} label="Go to album" onPress={go(() => openAlbum(track.album!.id))} /> : null}
+      <Action icon={AudioWaveform} label="Audio quality" onPress={go(() => openAudioQuality(track))} />
       {local ? (
         <>
-          <Action icon={FileAudio} label="File info" onPress={go(() => toast(fileInfo(track), 'info'))} />
           <Action
             icon={MicVocal}
             label="Find lyrics again"
@@ -139,15 +140,6 @@ function TrackActionsBody({ track, close, extra }: { track: Track; close: () => 
       {local ? <Action icon={Trash2} label="Remove from Aura" color={colors.danger} onPress={go(() => removeDeviceTracks([track.id]))} /> : null}
     </View>
   );
-}
-
-function fileInfo(t: Track): string {
-  const l = t.local!;
-  const parts = [l.codec ?? l.format.toUpperCase()];
-  if (l.sampleRate) parts.push(`${(l.sampleRate / 1000).toFixed(l.sampleRate % 1000 ? 1 : 0)} kHz`);
-  if (l.bitrateKbps) parts.push(`${l.bitrateKbps} kbps`);
-  if (l.sizeBytes) parts.push(`${(l.sizeBytes / 1048576).toFixed(1)} MB`);
-  return `${l.fileName}\n${parts.join(' · ')}`;
 }
 
 export interface TrackActionExtra {

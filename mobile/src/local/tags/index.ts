@@ -66,7 +66,11 @@ export async function readTags(src: ByteSource): Promise<TagResult> {
   return finish(out);
 }
 
+const LOSSLESS = new Set(['FLAC', 'ALAC', 'PCM', 'PCM float']);
+
 function finish(t: TagResult): TagResult {
+  t.lossless = !!t.codec && LOSSLESS.has(t.codec);
+  if (!t.lossless) t.bitsPerSample = undefined; // lossy codecs have no fixed bit depth
   if (t.durationSec !== undefined && (!Number.isFinite(t.durationSec) || t.durationSec <= 0 || t.durationSec > 24 * 3600)) t.durationSec = undefined;
   if (t.bitrateKbps !== undefined && (!Number.isFinite(t.bitrateKbps) || t.bitrateKbps <= 0)) t.bitrateKbps = undefined;
   return t;

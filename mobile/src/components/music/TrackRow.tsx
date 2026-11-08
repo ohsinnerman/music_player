@@ -10,6 +10,7 @@ import { Artwork } from '../ui/Artwork';
 import { IconButton } from '../ui/IconButton';
 import { PressableScale } from '../ui/PressableScale';
 import { Text } from '../ui/Text';
+import { QualityBadge } from '../quality/QualityBadge';
 import { ExplicitBadge, PreviewBadge } from './Badges';
 import { Equalizer } from './Equalizer';
 
@@ -68,6 +69,7 @@ export const TrackRow = memo(function TrackRow({ track, onPress, number, showArt
         <View style={styles.meta}>
           {track.explicit ? <ExplicitBadge /> : null}
           {track.streamKind === 'preview' ? <PreviewBadge /> : null}
+          {track.local ? <QualityBadge track={track} size="sm" /> : null}
           <Text variant="caption" tone="secondary" numberOfLines={1} style={{ flexShrink: 1 }}>
             {artistNames(track)}
           </Text>

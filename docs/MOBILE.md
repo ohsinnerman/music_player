@@ -4,8 +4,9 @@
 
 Expo SDK 58 · React Native 0.88 (New Architecture, Hermes) · Expo Router (file-based routes in
 `src/app`) · Reanimated 4 + react-native-worklets · Gesture Handler 3 (hook API) · Skia 2 ·
-expo-audio (ExoPlayer) · expo-blur · expo-image · FlashList 2 · TanStack Query 5 · Zustand 5 ·
-SecureStore · Plus Jakarta Sans + Instrument Serif · lucide icons.
+expo-audio (ExoPlayer) · expo-file-system (SAF file/folder access) · expo-blur · expo-image · FlashList 2 · TanStack Query 5 · Zustand 5 ·
+SecureStore · Plus Jakarta Sans + Instrument Serif · lucide icons. One local native module:
+`modules/aura-audio-route` (Kotlin, audio output info — see [AUDIO_QUALITY.md](AUDIO_QUALITY.md)).
 
 ## Navigation
 
@@ -13,7 +14,7 @@ SecureStore · Plus Jakarta Sans + Instrument Serif · lucide icons.
 src/app/_layout.tsx        Root: fonts, providers, BlurTargetView, Stack, + global overlays
   (tabs)/_layout.tsx       Tabs (index · explore · library) with the native tab bar hidden
   album/[id] artist/[id] playlist/[id] my-playlist/[id] genre/[id] liked
-  search  settings  auth  onboarding
+  search  settings  auth  onboarding  device (songs on this phone)
 ```
 
 The visible tab bar is `<GlassDock/>`, rendered in the root layout *above* the navigator, so it floats
@@ -28,7 +29,8 @@ Stack and its ref is shared through `ChromeProvider`.
 
 | Store | Persisted | Holds |
 |---|---|---|
-| `settings/store.ts` | AsyncStorage | server URL, onboarded, haptics, reduce transparency, living background, recent searches |
+| `settings/store.ts` | AsyncStorage | server URL, onboarded, appearance (system/light/dark), haptics, reduce transparency, living background, listen-to-identify, recent searches |
+| `local/store.ts` | AsyncStorage (+ art & lyrics files in the documents folder) | songs imported from the phone, their likes, identification status |
 | `auth/store.ts` | refresh token in SecureStore | status (`loading`/`guest`/`authed`), user |
 | `player/store.ts` | queue snapshot in AsyncStorage | queue, index, context, repeat, shuffle, playing/buffering; `clock` shared values |
 | `library/store.ts` | AsyncStorage | guest likes, playlists, local history |
@@ -41,6 +43,21 @@ Stack and its ref is shared through `ChromeProvider`.
 uses the server with optimistic updates. On sign-in, guest likes and playlists are uploaded and the
 local copy cleared. History is always mirrored locally so "Recently played" is instant.
 
+### Songs on this phone
+
+`local/` holds everything for the user's own files: `tags/` (pure-TS tag, artwork, duration and
+quality reader + clip cutter, unit-tested), `import.ts` (file/folder pickers, building `Track`s with a
+`local` block), `identify.ts` (embedded → cached → `/v1/identify` → `/v1/identify/audio` lyrics), and
+`store.ts`. Imported tracks have `provider: 'local'` and `local.uri`; the engine plays that URI directly.
+Their likes stay on the device and they're kept out of server-synced playlists. Details:
+[LOCAL_MUSIC.md](LOCAL_MUSIC.md).
+
+## Theming
+
+`theme/tokens.ts` defines `darkColors` and `lightColors`; `ThemeProvider` picks one from
+Settings → Appearance (or the system), and `useColors()` / `makeStyles((c) => …)` read it.
+The full player is wrapped in `<ThemeScope scheme="dark">` so it stays dark over album art in light mode.
+
 ## Playback
 
 See [ARCHITECTURE.md → The player engine](ARCHITECTURE.md#the-player-engine-mobilesrcplayer).
@@ -50,19 +67,22 @@ See [ARCHITECTURE.md → The player engine](ARCHITECTURE.md#the-player-engine-mo
 - Audio session: `doNotMix` (other apps pause), plays in silent mode, continues in background.
 - Android 13+: notification permission is requested on first play (needed to show controls).
 - Previous: restarts the song if >3 s in, otherwise goes back.
-- Errors (unplayable stream) show a toast and skip to the next song once.
+- Errors (unplayable stream, or a moved/deleted local file) show a toast and skip to the next song once.
+- Pressing play after the queue has ended restarts the last song.
 - Last session restores paused at the saved position.
 
 ## Performance notes
 
 - All animation (dock, player morph, scrubber, lyrics highlighting, tab lens) runs on the UI thread
   via shared values; React re-renders only when the track or play state changes.
-- The playback clock is interpolated every frame from 250 ms native updates (`PlaybackClock`).
+- The playback clock is interpolated every frame from 250 ms native updates (`PlaybackClock`) —
+  only while playing; when paused the engine writes the position directly.
 - Scrubber times use an animated `TextInput` (`ReText`) — no re-renders while playing.
 - Lists: FlatList with tuned windows for shelves, FlashList for the queue; rows are memoised and
   subscribe to the player store with narrow selectors.
 - Images: expo-image with memory+disk cache, recycling keys, sized sources (150/500/1000 px).
-- Living background renders at 1/25th of the pixels and only while the player is open.
+- Living background renders at 1/25th of the pixels, only while the player is open, and is unmounted
+  when the player collapses. The title marquee only animates while visible.
 - Heavy panels (lyrics) mount a frame after the panel animation starts.
 - Fonts: only the five weights used are bundled.
 
@@ -76,6 +96,12 @@ Build-time (`app.config.ts`):
 | `AURA_ALLOW_CLEARTEXT=true` | Allow `http://` (sets `usesCleartextTraffic`); LAN testing only |
 
 Runtime: **Settings → Server** overrides the baked URL (validated with a live `/v1/config` check).
+
+## Tests
+
+`npm test` (vitest) covers the pure modules: the tag reader / clip cutter
+(`src/local/tags/tags.test.ts`, with small ffmpeg-made fixtures in `__fixtures__/`) and quality
+assessment (`src/lib/quality.test.ts`). UI is checked on device and in the web preview.
 
 ## Adding a screen
 

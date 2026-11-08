@@ -9,6 +9,8 @@
 | User data (likes, playlists) | IDOR / cross-user access | every query scoped by `userId` from the verified token; tests prove isolation |
 | Server | SSRF, injection via IDs, DoS of free upstreams | allow-listed upstream hosts, strict ID regex, zod validation, body limits, LRU cache + coalescing |
 | Provider API keys | leakage via the app | keys only on the server; stream URLs resolved server-side |
+| Groq API key / AI budget | key leakage, someone burning your quota | key only in server env, never logged or returned; per-IP limits on `/identify*`; per-instance daily AI cap (`AI_DAILY_LIMIT`) |
+| Files on the phone | over-broad storage access | Storage Access Framework: the user picks files/folders, read-only grants, no storage permission requested |
 
 ## Backend controls
 
@@ -32,6 +34,13 @@ server, never trusted from the client.
 Deezer, Jamendo, LRCLIB), uses timeouts and one retry. The `/play` redirect only targets https URLs
 returned by a provider.
 
+**AI identification** — `/v1/identify` accepts only small JSON (tags, file name, duration);
+`/v1/identify/audio` accepts only audio MIME types up to 4 MB (raw body parser on that route alone).
+Tags, file names and transcripts are treated as untrusted data in the prompts; model output is
+validated with zod and only used as an LRCLIB search query. Clips are forwarded to Groq and not stored.
+Groq errors are mapped to generic codes (`ai_unavailable`, `ai_rate_limited`) so nothing about the key
+leaks. The Groq host is fixed (no user-controlled URLs).
+
 **HTTP hardening** — `helmet` with `default-src 'none'` CSP, HSTS in production, `nosniff`,
 frame-ancestors none, no `X-Powered-By`; CORS closed by default (native apps don't need it); global,
 search and auth rate limits; `trust proxy` configurable so limits see real client IPs behind
@@ -54,7 +63,9 @@ password-confirmed). Mongo TTL indexes purge expired refresh tokens.
   server URLs unless the build was made with `AURA_ALLOW_CLEARTEXT=true` (LAN testing only).
 - **Least privilege** — microphone, location, contacts, storage and overlay permissions are
   explicitly blocked. Requested: internet, foreground media playback, notifications (lock-screen
-  controls), vibrate.
+  controls), vibrate. Your own music is opened through the system file picker (Storage Access
+  Framework) with read-only grants — no storage permission. Reading the audio output device needs no
+  permission either.
 - **Code shrinking** — R8 minification and resource shrinking in release builds.
 - **Session expiry handling** — a rejected refresh clears local tokens and returns to guest mode.
 - **Server URL validation** — must parse as a URL, no embedded credentials, verified by calling
@@ -75,5 +86,7 @@ password-confirmed). Mongo TTL indexes purge expired refresh tokens.
 - Certificate pinning isn't enabled (would break when your host rotates certificates); consider it
   if you run on a fixed domain.
 - The stream endpoints are public (like any music CDN) but rate-limited.
+- `/identify` endpoints are public too (guests can import music), protected by rate limits and the daily
+  AI cap. If your server is just for you, keep `AI_DAILY_LIMIT` low.
 
 Report a vulnerability: open a private security advisory on the GitHub repository.
