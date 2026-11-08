@@ -26,8 +26,11 @@ mobile/src/local/tags   ── reads only the bytes it needs, never the whole fi
         └─ lyrics inside the file (LRC in USLT, SYLT, LYRICS, ©lyr) → used as-is, offline
 ```
 
-The audio itself is **never copied** — Aura keeps a read permission to the original
-file and plays it in place. Removing a song from Aura leaves the file on your phone.
+The audio is played **in place** — Aura keeps a read permission to the original file. If a phone's
+media player can't open picked files directly (some storage providers hand out URIs only the app can
+read), Aura notices the first failure, copies that song into its cache once, plays the copy, and from
+then on prepares copies of the next two songs ahead of time (`src/local/playback.ts`; cache capped at
+1.5 GB, oldest first, and the OS may clear it). Removing a song from Aura leaves the file on your phone.
 
 ## Finding the right song and its lyrics
 

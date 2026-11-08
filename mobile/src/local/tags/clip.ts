@@ -72,13 +72,62 @@ async function flacClip(src: ByteSource, tags: TagResult): Promise<Clip | null> 
   const want = bytesFor(tags, 900);
   const at = startAt(src, pos, want);
   const window = await src.read(at, Math.min(src.size - at, want + 65536));
-  // Frame sync: 0xFFF8 (fixed block size) or 0xFFF9 (variable), followed by sane block-size / rate codes.
+  // First real frame: sync code + a header whose CRC-8 checks out (sync patterns also occur in audio data).
   let i = 0;
-  for (; i < window.length - 4; i++) {
-    if (window[i] === 0xff && (window[i + 1] === 0xf8 || window[i + 1] === 0xf9) && window[i + 2]! >> 4 !== 0 && (window[i + 2]! & 0x0f) !== 0x0f) break;
+  while (i < window.length - 16 && !isFlacFrame(window, i)) i++;
+  if (i >= window.length - 16) return null;
+  // End on a frame boundary too, so the last frame isn't cut in half.
+  let end = Math.min(window.length, i + want);
+  for (let j = end - 2; j > i + 16; j--) {
+    if (isFlacFrame(window, j)) {
+      end = j;
+      break;
+    }
   }
-  if (i >= window.length - 4) return null;
-  return { bytes: concat([header, window.subarray(i, i + want)]), mime: 'audio/flac' };
+  return { bytes: concat([header, window.subarray(i, end)]), mime: 'audio/flac' };
+}
+
+const CRC8 = (() => {
+  const t = new Uint8Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 0x80 ? ((c << 1) ^ 0x07) & 0xff : (c << 1) & 0xff;
+    t[n] = c;
+  }
+  return t;
+})();
+
+/** Validate a FLAC frame header at `o` (RFC 9639 §9.1), including its CRC-8. */
+export function isFlacFrame(b: Uint8Array, o: number): boolean {
+  if (b[o] !== 0xff || (b[o + 1]! & 0xfe) !== 0xf8) return false;
+  const bs = b[o + 2]! >> 4;
+  const sr = b[o + 2]! & 0x0f;
+  const ch = b[o + 3]! >> 4;
+  const ss = (b[o + 3]! >> 1) & 0x07;
+  if (bs === 0 || sr === 0x0f || ch > 10 || ss === 3 || (b[o + 3]! & 1) !== 0) return false;
+  // Coded frame/sample number: UTF-8-style, 1–7 bytes.
+  let p = o + 4;
+  const lead = b[p]!;
+  let extra = 0;
+  if (lead >= 0x80) {
+    if ((lead & 0xe0) === 0xc0) extra = 1;
+    else if ((lead & 0xf0) === 0xe0) extra = 2;
+    else if ((lead & 0xf8) === 0xf0) extra = 3;
+    else if ((lead & 0xfc) === 0xf8) extra = 4;
+    else if ((lead & 0xfe) === 0xfc) extra = 5;
+    else if (lead === 0xfe) extra = 6;
+    else return false;
+  }
+  for (let k = 1; k <= extra; k++) if ((b[p + k]! & 0xc0) !== 0x80) return false;
+  p += 1 + extra;
+  if (bs === 6) p += 1;
+  else if (bs === 7) p += 2;
+  if (sr === 12) p += 1;
+  else if (sr === 13 || sr === 14) p += 2;
+  if (p >= b.length) return false;
+  let crc = 0;
+  for (let k = o; k < p; k++) crc = CRC8[crc ^ b[k]!]!;
+  return crc === b[p];
 }
 
 async function wavClip(src: ByteSource): Promise<Clip | null> {

@@ -11,6 +11,7 @@ import { playUrl } from '@/api/client';
 import type { PlayContext, Track } from '@/api/types';
 import { toast } from '@/components/ui/Toast';
 import { recordPlay } from '@/library/hooks';
+import { describeFormat, ensurePlayableCopy, playableUri, prefersCopies, setPreferCopies } from '@/local/playback';
 import { type RepeatMode, clock, usePlayer, useProgress } from './store';
 
 /**
@@ -24,6 +25,7 @@ import { type RepeatMode, clock, usePlayer, useProgress } from './store';
 
 const MAX_QUEUE = 200;
 const PERSIST_KEY = 'aura.queue.v1';
+const PREFER_COPIES_KEY = 'aura.playback.preferCopies';
 
 let pl: AudioPlaylist | null = null;
 let lockScreenActive = false;
@@ -35,8 +37,8 @@ let lastMetaId: string | null = null;
 /** While rebuilding the native queue, ignore index events until this index shows up. */
 let pending: { index: number; until: number } | null = null;
 
-/** Imported songs play straight from the file; catalog songs via the server's /play redirect. */
-const source = (t: Track) => ({ uri: t.local?.uri ?? playUrl(t.id), name: t.title });
+/** Imported songs play from the file (or its cached copy); catalog songs via the server's /play redirect. */
+const source = (t: Track) => ({ uri: t.local ? playableUri(t) : playUrl(t.id), name: t.title });
 
 function metadata(t: Track) {
   return {
@@ -75,6 +77,7 @@ function onIndex(index: number) {
   }
   lastMetaId = t.id;
   if (lockScreenActive) pl?.updateLockScreenMetadata(metadata(t));
+  prefetchCopies(index);
   if (lastRecorded !== t.id) {
     lastRecorded = t.id;
     recordPlay(t);
@@ -100,16 +103,91 @@ function onStatus(st: AudioPlaylistStatus & { error?: { message?: string } | str
   if (typeof st.currentIndex === 'number') onIndex(st.currentIndex);
 
   if (st.error) {
-    const { index, queue } = usePlayer.getState();
+    const { index } = usePlayer.getState();
     if (lastErrorIndex === index) return;
     lastErrorIndex = index;
-    const local = !!queue[index]?.local;
-    const what = local ? 'Couldn’t open this file (moved or deleted?)' : 'Couldn’t play this song';
-    toast(index < queue.length - 1 ? `${what} — skipping` : what, 'error');
-    if (index < queue.length - 1) pl?.next();
+    const code = typeof st.error === 'object' ? (st.error as { code?: number }).code : undefined;
+    void recover(index, code);
   } else if (st.playing) {
     lastErrorIndex = -1;
   }
+}
+
+/* ───────────────────────── Error recovery ───────────────────────── */
+
+/** Media3 error code groups (PlaybackException.ERROR_CODE_*). */
+const isIoError = (code?: number) => code === undefined || (code >= 2000 && code < 3000);
+const isFormatError = (code?: number) => code !== undefined && code >= 3000 && code < 6000;
+const attempts = new Map<string, number>();
+
+/**
+ * After any playback error ExoPlayer sits idle and ignores next/skip/add until
+ * re-prepared, which expo-audio's playlist can't do. So we rebuild the native
+ * playlist. For a song on the phone that failed to *open*, we first copy it into
+ * the app's cache and retry from the copy.
+ */
+async function recover(index: number, code?: number) {
+  const { queue } = usePlayer.getState();
+  const t = queue[index];
+  if (!t) return;
+  const n = (attempts.get(t.id) ?? 0) + 1;
+  attempts.set(t.id, n);
+
+  if (t.local && n === 1 && isIoError(code)) {
+    const uri = await ensurePlayableCopy(t);
+    if (uri) {
+      // This phone's player can't open picked files directly: use copies from now on.
+      setPreferCopies(true);
+      AsyncStorage.setItem(PREFER_COPIES_KEY, '1').catch(() => undefined);
+      rebuild(index, true);
+      return;
+    }
+  }
+
+  const hasNext = index < queue.length - 1;
+  const why = t.local
+    ? isFormatError(code)
+      ? `This phone can’t play ${describeFormat(t)}`
+      : 'Couldn’t open this file (moved or deleted?)'
+    : 'Couldn’t play this song';
+  toast(hasNext ? `${why} — skipping` : why, 'error');
+  rebuild(hasNext ? index + 1 : index, hasNext);
+}
+
+/** Replace the native playlist (the old one may be stuck in an error state). */
+function rebuild(index: number, autoplay: boolean) {
+  const old = pl;
+  pl = null;
+  lockScreenActive = false;
+  lastMetaId = null;
+  try {
+    old?.clearLockScreenControls();
+  } catch {
+    /* ignore */
+  }
+  try {
+    old?.destroy();
+  } catch {
+    /* ignore */
+  }
+  const s = usePlayer.getState();
+  if (!s.queue.length) return;
+  const i = Math.min(Math.max(0, index), s.queue.length - 1);
+  const p = ensure();
+  if (s.repeat !== 'off') p.loop = s.repeat === 'all' ? 'all' : 'single';
+  usePlayer.setState({ index: i });
+  loadNative(s.queue, i);
+  activateLockScreen(s.queue[i]!);
+  lastErrorIndex = -1;
+  if (autoplay) p.play();
+  onIndex(i);
+}
+
+/** When copies are needed, prepare the next couple of songs ahead of time. */
+function prefetchCopies(index: number) {
+  if (!prefersCopies()) return;
+  const { queue } = usePlayer.getState();
+  for (const t of queue.slice(index + 1, index + 3)) if (t.local) void ensurePlayableCopy(t);
 }
 
 function ensure(): AudioPlaylist {
@@ -181,8 +259,12 @@ export const player = {
       clock.at.value = Date.now();
       useProgress.setState({ position: 0, duration: queue[index]!.durationMs / 1000 });
       clock.duration.value = queue[index]!.durationMs / 1000;
+      const first = queue[index]!;
+      if (first.local && prefersCopies()) await ensurePlayableCopy(first);
+      attempts.clear();
+      lastErrorIndex = -1;
       loadNative(queue, index);
-      activateLockScreen(queue[index]!);
+      activateLockScreen(first);
       ensure().play();
       onIndex(index);
     } catch (e) {
@@ -345,6 +427,7 @@ export const player = {
   /** Restore last session (paused) on launch. */
   async restore() {
     try {
+      if ((await AsyncStorage.getItem(PREFER_COPIES_KEY)) === '1') setPreferCopies(true);
       const raw = await AsyncStorage.getItem(PERSIST_KEY);
       if (!raw) return;
       const saved = JSON.parse(raw) as {

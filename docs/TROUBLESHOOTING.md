@@ -54,6 +54,13 @@ Pick the folder that actually contains the music (Android's picker can't select 
 storage or the Downloads root on some phones — choose a subfolder). Supported: FLAC, WAV, MP3, M4A
 (AAC/ALAC), OGG, Opus, AIFF. Up to 3000 files per folder, 8 levels deep.
 
+### Imported songs don't play (fixed in builds after Nov 9 2026)
+Older builds stopped playing *everything* after a single song failed (the player stayed idle).
+Update to the latest APK: the player now recovers and skips, and songs the phone's media player can't
+open directly are played from a cached copy automatically. If a song says "This phone can’t play
+6-channel 24-bit 192 kHz FLAC", your phone's audio hardware can't output that format; a stereo
+version of the file will play.
+
 ### An imported song says "Couldn’t open this file"
 The file was moved, renamed or deleted, or the SD card was removed. Add it again from its new place
 (⋯ → Remove from Aura, then add it).

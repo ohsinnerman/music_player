@@ -204,6 +204,8 @@ describe('helpers', () => {
     expect(parseFilename('03. Clair de Lune.flac')).toEqual({ title: 'Clair de Lune', trackNo: 3 });
     expect(parseFilename('Arijit Singh – Tum Hi Ho [www.SongsPk.com].mp3')).toEqual({ artist: 'Arijit Singh', title: 'Tum Hi Ho', trackNo: undefined });
     expect(parseFilename('1999 - Prince.mp3').trackNo).toBeUndefined();
+    expect(parseFilename('Crazy_In_Love_-_Beyoncé_ft._JAY_Z_01.flac')).toEqual({ artist: 'Beyoncé ft. JAY Z', title: 'Crazy In Love', trackNo: 1 });
+    expect(parseFilename('AUD-20230708-WA0004.mp3').title).toBe('AUD-20230708-WA0004');
   });
 });
 

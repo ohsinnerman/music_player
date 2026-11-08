@@ -77,7 +77,10 @@ See [ARCHITECTURE.md → The player engine](ARCHITECTURE.md#the-player-engine-mo
 - Audio session: `doNotMix` (other apps pause), plays in silent mode, continues in background.
 - Android 13+: notification permission is requested on first play (needed to show controls).
 - Previous: restarts the song if >3 s in, otherwise goes back.
-- Errors (unplayable stream, or a moved/deleted local file) show a toast and skip to the next song once.
+- Errors: ExoPlayer goes idle after any playback error and ignores next/skip until re-prepared, so the
+  engine **rebuilds the native playlist** and continues with the next song. A song on the phone that
+  failed to open is first retried from a cached copy; one the phone can't decode (e.g. some 6-channel
+  192 kHz FLACs) gets a clear message naming the format.
 - Pressing play after the queue has ended restarts the last song.
 - Last session restores paused at the saved position.
 

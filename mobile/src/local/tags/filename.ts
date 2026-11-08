@@ -28,12 +28,24 @@ export function parseFilename(name: string): FilenameGuess {
     base = base.slice(num[0].length);
   }
 
+  // A trailing track number ("… 01", "… (01)") is common in ripped/bought files.
+  const tail = /\s+\(?(\d{1,2})\)?$/.exec(base);
+  if (tail && !/\b(19|20)\d{2}$/.test(base)) {
+    trackNo ??= Number(tail[1]);
+    base = base.slice(0, tail.index).trim();
+  }
+
   const parts = base
     .split(/\s+[-–—]\s+|\s*[–—]\s*/)
     .map((p) => p.trim())
     .filter(Boolean);
   if (parts.length >= 2) {
-    return { artist: parts[0], title: parts.slice(1).join(' - '), trackNo };
+    const left = parts[0]!;
+    const right = parts.slice(1).join(' - ');
+    // "Title - Artist ft. Guest": the side with the featuring credit is the artist.
+    const feat = /\b(ft|feat|featuring)\.?\s/i;
+    if (feat.test(right) && !feat.test(left)) return { artist: right, title: left, trackNo };
+    return { artist: left, title: right, trackNo };
   }
   return { title: base || name, trackNo };
 }
