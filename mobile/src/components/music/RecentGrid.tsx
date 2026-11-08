@@ -1,9 +1,9 @@
 import { memo } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import type { Track } from '@/api/types';
 import { player } from '@/player/engine';
 import { usePlayer } from '@/player/store';
-import { colors, GUTTER, radius } from '@/theme';
+import { GUTTER, makeStyles, radius, useColors } from '@/theme';
 import { openTrackActions } from '../sheets/TrackActions';
 import { Artwork } from '../ui/Artwork';
 import { PressableScale } from '../ui/PressableScale';
@@ -11,6 +11,8 @@ import { Text } from '../ui/Text';
 import { Equalizer } from './Equalizer';
 
 const Tile = memo(function Tile({ track, width, onPress }: { track: Track; width: number; onPress: () => void }) {
+  const colors = useColors();
+  const styles = useStyles();
   const current = usePlayer((s) => s.queue[s.index]?.id === track.id);
   const playing = usePlayer((s) => s.isPlaying && s.queue[s.index]?.id === track.id);
   return (
@@ -30,6 +32,7 @@ const Tile = memo(function Tile({ track, width, onPress }: { track: Track; width
 
 /** Spotify-style "jump back in" grid of recently played songs. */
 export const RecentGrid = memo(function RecentGrid({ tracks }: { tracks: Track[] }) {
+  const styles = useStyles();
   const { width: W } = useWindowDimensions();
   const w = (W - GUTTER * 2 - 10) / 2;
   const list = tracks.slice(0, 6);
@@ -43,8 +46,8 @@ export const RecentGrid = memo(function RecentGrid({ tracks }: { tracks: Track[]
   );
 });
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: GUTTER },
-  tile: { height: 52, borderRadius: radius.xs + 2, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.07)' },
+  tile: { height: 52, borderRadius: radius.xs + 2, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', backgroundColor: colors.fill },
   title: { flex: 1, paddingHorizontal: 10, fontSize: 13, lineHeight: 16 },
-});
+}));

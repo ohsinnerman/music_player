@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react-native';
 import { memo } from 'react';
 import { ActivityIndicator, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
-import { colors, radius } from '@/theme';
+import { type ColorTokens, radius, useColors } from '@/theme';
 import { PressableScale } from './PressableScale';
 import { Text } from './Text';
 
@@ -28,7 +28,7 @@ export const Button = memo(function Button({
   style,
   accessibilityLabel,
 }: ButtonProps) {
-  const v = VARIANTS[variant];
+  const v = variants(useColors())[variant];
   const h = size === 'lg' ? 54 : 46;
   return (
     <PressableScale
@@ -53,13 +53,13 @@ export const Button = memo(function Button({
   );
 });
 
-const VARIANTS = {
+const variants = (colors: ColorTokens) => ({
   primary: { bg: colors.accent, fg: colors.onAccent, border: 'transparent' },
-  light: { bg: colors.text, fg: '#0B0B0F', border: 'transparent' },
-  secondary: { bg: 'rgba(255,255,255,0.08)', fg: colors.text, border: colors.strokeStrong },
+  light: { bg: colors.text, fg: colors.textInverse, border: 'transparent' },
+  secondary: { bg: colors.fillStrong, fg: colors.text, border: colors.strokeStrong },
   ghost: { bg: 'transparent', fg: colors.text, border: 'transparent' },
-  danger: { bg: 'rgba(255,107,107,0.12)', fg: colors.danger, border: 'rgba(255,107,107,0.3)' },
-} as const;
+  danger: { bg: colors.accentSoft, fg: colors.danger, border: colors.strokeStrong },
+});
 
 const styles = StyleSheet.create({
   base: {

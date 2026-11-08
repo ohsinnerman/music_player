@@ -1,6 +1,6 @@
 import { MicVocal } from 'lucide-react-native';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 import Animated, {
   type SharedValue,
   scrollTo,
@@ -17,7 +17,7 @@ import { useLyrics } from '@/api/queries';
 import type { LyricLine, Track } from '@/api/types';
 import { player } from '@/player/engine';
 import { clock } from '@/player/store';
-import { colors, fonts, type } from '@/theme';
+import { fonts, makeStyles, type, useColors } from '@/theme';
 import { Text } from '../ui/Text';
 
 /** Find the active line for a time (binary search, runs on the UI thread). */
@@ -47,6 +47,7 @@ const Line = memo(function Line({
   active: SharedValue<number>;
   onLayout: (i: number, y: number) => void;
 }) {
+  const styles = useStyles();
   const style = useAnimatedStyle(() => {
     const d = Math.abs(index - active.value);
     const isActive = index === active.value;
@@ -71,6 +72,7 @@ const Line = memo(function Line({
 
 /** Pulsing "• • •" shown during the intro before the first sung line. */
 function BeatDots({ firstMs }: { firstMs: number }) {
+  const styles = useStyles();
   const pulse = useSharedValue(0);
   useEffect(() => {
     pulse.value = withRepeat(withTiming(1, { duration: 700 }), -1, true);
@@ -145,6 +147,8 @@ function Synced({ lines, height }: { lines: LyricLine[]; height: number }) {
 }
 
 function Message({ title, body }: { title: string; body?: string }) {
+  const colors = useColors();
+  const styles = useStyles();
   return (
     <View style={styles.message}>
       <MicVocal size={28} color={colors.textTertiary} />
@@ -161,6 +165,8 @@ function Message({ title, body }: { title: string; body?: string }) {
 }
 
 export const LyricsView = memo(function LyricsView({ track, height }: { track: Track; height: number }) {
+  const colors = useColors();
+  const styles = useStyles();
   const { data, isLoading, error } = useLyrics(track.id);
   const [ready, setReady] = useState(false);
   // Defer mounting the (possibly long) list one frame so the panel transition stays smooth.
@@ -195,9 +201,9 @@ export const LyricsView = memo(function LyricsView({ track, height }: { track: T
   return <Message title="No lyrics for this one yet" body="Enjoy the music." />;
 });
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   line: { ...type.lyric, color: colors.text, paddingVertical: 9, transformOrigin: 'left center' },
   dots: { fontFamily: fonts.extrabold, fontSize: 30, color: colors.text, paddingVertical: 8, letterSpacing: 4 },
   plain: { fontFamily: fonts.bold, fontSize: 21, lineHeight: 32, color: 'rgba(255,255,255,0.85)' },
   message: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 40 },
-});
+}));

@@ -3,8 +3,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode, memo } from 'react';
 import { Platform, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 import { useBlurTarget } from '@/lib/chrome';
+import { usePlayerUi } from '@/player/ui';
 import { useSettings } from '@/settings/store';
-import { colors } from '@/theme';
+import { useColors } from '@/theme';
 
 export interface GlassProps {
   children?: ReactNode;
@@ -38,10 +39,15 @@ export const Glass = memo(function Glass({
   rim = true,
   pointerEvents,
 }: GlassProps) {
+  const colors = useColors();
   const target = useBlurTarget();
   const reduce = useSettings((s) => s.reduceTransparency);
+  // The full-screen player lives outside the blur target, so an overlay opened on top of it
+  // (sheet, toast) would blur the page *behind* the player. Use a frosted fill instead.
+  const playerOpen = usePlayerUi((s) => s.isOpen);
   const android = Platform.OS === 'android';
-  const realBlur = !reduce && (!android || (variant === 'overlay' && !!target));
+  const realBlur = !reduce && (!android || (variant === 'overlay' && !!target && !playerOpen));
+  const frosted = colors.scheme === 'dark' ? 'rgba(24,24,30,0.9)' : 'rgba(250,250,252,0.92)';
 
   return (
     <View pointerEvents={pointerEvents} style={[{ borderRadius: radius, overflow: 'hidden' }, style]}>
@@ -49,7 +55,7 @@ export const Glass = memo(function Glass({
         <BlurView
           style={StyleSheet.absoluteFill}
           intensity={intensity}
-          tint="systemUltraThinMaterialDark"
+          tint={colors.blurTint}
           blurMethod={android ? 'dimezisBlurViewSdk31Plus' : 'none'}
           blurReductionFactor={android ? 3 : undefined}
           blurTarget={android ? target : undefined}
@@ -58,7 +64,7 @@ export const Glass = memo(function Glass({
       <View
         style={[
           StyleSheet.absoluteFill,
-          { backgroundColor: realBlur ? colors.glassTint : reduce ? colors.glassTintSolid : 'rgba(24,24,30,0.86)' },
+          { backgroundColor: realBlur ? colors.glassTint : reduce ? colors.glassTintSolid : frosted },
         ]}
       />
       {tint ? <View style={[StyleSheet.absoluteFill, { backgroundColor: tint }]} /> : null}
@@ -67,12 +73,12 @@ export const Glass = memo(function Glass({
           {/* top specular sheen */}
           <LinearGradient
             pointerEvents="none"
-            colors={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0)']}
+            colors={colors.scheme === 'dark' ? ['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0)'] : ['rgba(255,255,255,0.55)', 'rgba(255,255,255,0.12)', 'rgba(255,255,255,0)']}
             locations={[0, 0.35, 0.7]}
             style={StyleSheet.absoluteFill}
           />
           {/* edge rim: brighter top edge fading to a faint bottom edge */}
-          <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.rim, { borderRadius: radius }]} />
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.rim, { borderRadius: radius, borderColor: colors.glassBorder }]} />
           <LinearGradient
             pointerEvents="none"
             colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.42)', 'rgba(255,255,255,0)']}
@@ -90,7 +96,6 @@ export const Glass = memo(function Glass({
 const styles = StyleSheet.create({
   rim: {
     borderWidth: StyleSheet.hairlineWidth * 2,
-    borderColor: 'rgba(255,255,255,0.08)',
   },
   lip: {
     position: 'absolute',

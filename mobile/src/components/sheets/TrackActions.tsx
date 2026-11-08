@@ -22,7 +22,7 @@ import { artistNames } from '@/lib/format';
 import { haptic } from '@/lib/haptics';
 import { openAlbum, openArtist } from '@/lib/nav';
 import { player } from '@/player/engine';
-import { colors, GUTTER, radius } from '@/theme';
+import { GUTTER, makeStyles, radius, useColors } from '@/theme';
 import { Artwork } from '../ui/Artwork';
 import { Button } from '../ui/Button';
 import { PressableScale } from '../ui/PressableScale';
@@ -31,7 +31,10 @@ import { Text } from '../ui/Text';
 import { TextField } from '../ui/TextField';
 import { toast } from '../ui/Toast';
 
-function Action({ icon: Icon, label, onPress, color = colors.text }: { icon: LucideIcon; label: string; onPress: () => void; color?: string }) {
+function Action({ icon: Icon, label, onPress, color: colorProp }: { icon: LucideIcon; label: string; onPress: () => void; color?: string }) {
+  const colors = useColors();
+  const color = colorProp ?? colors.text;
+  const styles = useStyles();
   return (
     <PressableScale onPress={onPress} dim scaleTo={0.98} style={styles.action} hapticOnPress="tap">
       <Icon size={22} color={color} strokeWidth={1.9} />
@@ -43,6 +46,7 @@ function Action({ icon: Icon, label, onPress, color = colors.text }: { icon: Luc
 }
 
 function Header({ track }: { track: Track }) {
+  const styles = useStyles();
   return (
     <View style={styles.header}>
       <Artwork artwork={track.artwork} size={56} radius={radius.sm} />
@@ -59,6 +63,8 @@ function Header({ track }: { track: Track }) {
 }
 
 function TrackActionsBody({ track, close, extra }: { track: Track; close: () => void; extra?: TrackActionExtra[] }) {
+  const colors = useColors();
+  const styles = useStyles();
   const liked = useIsLiked(track.id);
   const go = (fn: () => void) => () => {
     close();
@@ -127,6 +133,8 @@ export const removeExtra = (onPress: () => void): TrackActionExtra => ({ label: 
 /* ───────────── Playlist picker ───────────── */
 
 function PlaylistPicker({ tracks, close }: { tracks: Track[]; close: () => void }) {
+  const colors = useColors();
+  const styles = useStyles();
   const { playlists } = usePlaylists();
   return (
     <View>
@@ -216,10 +224,10 @@ export function openCreatePlaylist(tracks: Track[] = [], onCreated?: (id: string
 
 export { closeSheet };
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   header: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: GUTTER, paddingVertical: 10 },
   sep: { height: StyleSheet.hairlineWidth, backgroundColor: colors.strokeStrong, marginHorizontal: GUTTER, marginVertical: 6 },
   action: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: GUTTER + 2, height: 50 },
   pickRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: GUTTER, paddingVertical: 8 },
-  newIcon: { width: 48, height: 48, borderRadius: radius.xs, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-});
+  newIcon: { width: 48, height: 48, borderRadius: radius.xs, backgroundColor: colors.fillStrong, alignItems: 'center', justifyContent: 'center' },
+}));

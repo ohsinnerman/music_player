@@ -6,7 +6,7 @@ import { create } from 'zustand';
 import Animated, { interpolate, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { chrome } from '@/lib/chrome';
 import { goTab } from '@/lib/nav';
-import { colors, fonts, spring } from '@/theme';
+import { fonts, makeStyles, spring, useColors } from '@/theme';
 import { Glass } from '../ui/Glass';
 import { PressableScale } from '../ui/PressableScale';
 import { useDockGeometry } from './geometry';
@@ -30,6 +30,8 @@ function tabIndexFor(path: string): number | null {
 }
 
 const TabButton = memo(function TabButton({ i, active, onPress, width }: { i: number; active: boolean; onPress: () => void; width: number }) {
+  const colors = useColors();
+  const styles = useStyles();
   const t = TABS[i]!;
   const Icon = t.icon;
   const style = useAnimatedStyle(() => {
@@ -60,6 +62,8 @@ const TabButton = memo(function TabButton({ i, active, onPress, width }: { i: nu
  * slides down beside it.
  */
 export function GlassDock() {
+  const colors = useColors();
+  const styles = useStyles();
   const g = useDockGeometry();
   const path = usePathname();
   const current = tabIndexFor(path);
@@ -155,7 +159,7 @@ export function GlassDock() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   pillWrap: { position: 'absolute', borderRadius: 999 },
   row: { flexDirection: 'row', paddingHorizontal: 4, height: '100%', alignItems: 'center' },
   lens: {
@@ -163,12 +167,12 @@ const styles = StyleSheet.create({
     top: 4,
     left: 0,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.11)',
+    backgroundColor: colors.fillStrong,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: colors.hairlineLight,
   },
   tab: { alignItems: 'center', justifyContent: 'center', height: 54, gap: 3 },
   tabLabel: { fontFamily: fonts.semibold, fontSize: 10.5, letterSpacing: 0.1 },
   searchWrap: { position: 'absolute' },
   center: { alignItems: 'center', justifyContent: 'center' },
-});
+}));

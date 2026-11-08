@@ -7,6 +7,8 @@ const extra = (Constants.expoConfig?.extra ?? {}) as { apiUrl?: string; allowCle
 export const BUILD_API_URL = (extra.apiUrl ?? '').replace(/\/+$/, '');
 export const ALLOW_CLEARTEXT = !!extra.allowCleartext;
 
+export type ThemeMode = 'system' | 'light' | 'dark';
+
 export type UrlProblem = 'empty' | 'invalid' | 'insecure' | null;
 
 /** Validate a server URL. Plain http is refused unless the build explicitly allows it (LAN testing). */
@@ -33,6 +35,8 @@ interface SettingsState {
   /** Animated artwork background in the player. */
   livingBackground: boolean;
   recentSearches: string[];
+  themeMode: ThemeMode;
+  setThemeMode: (m: ThemeMode) => void;
   setServerUrl: (url: string) => void;
   setOnboarded: (v: boolean) => void;
   toggle: (key: 'haptics' | 'reduceTransparency' | 'livingBackground') => void;
@@ -49,6 +53,8 @@ export const useSettings = create<SettingsState>()(
       reduceTransparency: false,
       livingBackground: true,
       recentSearches: [],
+      themeMode: 'system',
+      setThemeMode: (themeMode) => set({ themeMode }),
       setServerUrl: (serverUrl) => set({ serverUrl }),
       setOnboarded: (onboarded) => set({ onboarded }),
       toggle: (key) => set((s) => ({ [key]: !s[key] }) as Partial<SettingsState>),
@@ -64,7 +70,8 @@ export const useSettings = create<SettingsState>()(
       name: 'aura.settings',
       storage: persistStorage,
       version: 1,
-      partialize: ({ serverUrl, onboarded, haptics, reduceTransparency, livingBackground, recentSearches }) => ({
+      partialize: ({ serverUrl, onboarded, haptics, reduceTransparency, livingBackground, recentSearches, themeMode }) => ({
+        themeMode,
         serverUrl,
         onboarded,
         haptics,

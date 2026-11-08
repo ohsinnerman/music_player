@@ -6,9 +6,10 @@ import { CollectionScreen } from '@/components/music/CollectionScreen';
 import { openCreatePlaylist } from '@/components/sheets/TrackActions';
 import { IconButton } from '@/components/ui/IconButton';
 import { Text } from '@/components/ui/Text';
-import { colors, GUTTER } from '@/theme';
+import { GUTTER, useColors } from '@/theme';
 
 export default function PlaylistScreen() {
+  const colors = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, isLoading, error, refetch } = usePlaylist(id);
   const tracks = data?.tracks ?? [];

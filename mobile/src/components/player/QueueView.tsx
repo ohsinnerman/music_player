@@ -6,7 +6,7 @@ import type { Track } from '@/api/types';
 import { artistNames } from '@/lib/format';
 import { player } from '@/player/engine';
 import { usePlayer } from '@/player/store';
-import { colors, GUTTER, radius } from '@/theme';
+import { GUTTER, radius, useColors } from '@/theme';
 import { Artwork } from '../ui/Artwork';
 import { IconButton } from '../ui/IconButton';
 import { PressableScale } from '../ui/PressableScale';
@@ -15,6 +15,7 @@ import { Text } from '../ui/Text';
 type Row = { type: 'header'; title: string; action?: { label: string; onPress: () => void } } | { type: 'track'; track: Track; index: number; current: boolean };
 
 const QueueRow = memo(function QueueRow({ track, index, current, currentIndex }: { track: Track; index: number; current: boolean; currentIndex: number }) {
+  const colors = useColors();
   return (
     <PressableScale onPress={() => player.skipTo(index)} dim scaleTo={0.985} style={styles.row} accessibilityLabel={`Play ${track.title}`}>
       <Artwork artwork={track.artwork} size={44} radius={radius.xs} />

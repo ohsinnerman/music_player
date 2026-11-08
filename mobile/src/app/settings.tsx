@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { CircleCheck, CircleX, LogOut, type LucideIcon, ShieldCheck, Trash2, UserRound, X } from 'lucide-react-native';
+import { CircleCheck, CircleX, LogOut, type LucideIcon, Moon, ShieldCheck, Smartphone, Sun, Trash2, UserRound, X } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
 import { Alert, Linking, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,10 +16,11 @@ import { Text } from '@/components/ui/Text';
 import { TextField } from '@/components/ui/TextField';
 import { toast } from '@/components/ui/Toast';
 import { useLocalLibrary } from '@/library/store';
-import { ALLOW_CLEARTEXT, checkServerUrl, useSettings } from '@/settings/store';
-import { colors, fonts, GUTTER, radius } from '@/theme';
+import { ALLOW_CLEARTEXT, type ThemeMode, checkServerUrl, useSettings } from '@/settings/store';
+import { GUTTER, fonts, makeStyles, radius, useColors } from '@/theme';
 
 function Group({ title, children, footer }: { title: string; children: ReactNode; footer?: string }) {
+  const styles = useStyles();
   return (
     <View style={{ marginTop: 28 }}>
       <Text variant="label" tone="tertiary" style={{ marginLeft: GUTTER + 4, marginBottom: 8 }}>
@@ -35,7 +36,10 @@ function Group({ title, children, footer }: { title: string; children: ReactNode
   );
 }
 
-function Row({ icon: Icon, label, onPress, color = colors.text, right }: { icon?: LucideIcon; label: string; onPress?: () => void; color?: string; right?: ReactNode }) {
+function Row({ icon: Icon, label, onPress, color: colorProp, right }: { icon?: LucideIcon; label: string; onPress?: () => void; color?: string; right?: ReactNode }) {
+  const colors = useColors();
+  const color = colorProp ?? colors.text;
+  const styles = useStyles();
   return (
     <PressableScale onPress={onPress} disabled={!onPress} dim scaleTo={0.99} style={styles.row}>
       {Icon ? <Icon size={20} color={color} strokeWidth={2} /> : null}
@@ -48,6 +52,8 @@ function Row({ icon: Icon, label, onPress, color = colors.text, right }: { icon?
 }
 
 function Toggle({ label, value, onChange, hint }: { label: string; value: boolean; onChange: () => void; hint?: string }) {
+  const colors = useColors();
+  const styles = useStyles();
   return (
     <View style={styles.row}>
       <View style={{ flex: 1 }}>
@@ -58,7 +64,47 @@ function Toggle({ label, value, onChange, hint }: { label: string; value: boolea
           </Text>
         ) : null}
       </View>
-      <Switch value={value} onValueChange={onChange} trackColor={{ true: colors.accent, false: 'rgba(255,255,255,0.15)' }} thumbColor="#fff" accessibilityLabel={label} />
+      <Switch value={value} onValueChange={onChange} trackColor={{ true: colors.accent, false: colors.fillStrong }} thumbColor="#fff" accessibilityLabel={label} />
+    </View>
+  );
+}
+
+const MODES: { mode: ThemeMode; label: string; icon: LucideIcon }[] = [
+  { mode: 'system', label: 'System', icon: Smartphone },
+  { mode: 'light', label: 'Light', icon: Sun },
+  { mode: 'dark', label: 'Dark', icon: Moon },
+];
+
+function Appearance() {
+  const colors = useColors();
+  const styles = useStyles();
+  const mode = useSettings((x) => x.themeMode);
+  const setMode = useSettings((x) => x.setThemeMode);
+  return (
+    <View style={{ padding: 16, gap: 10 }}>
+      <Text variant="body">Appearance</Text>
+      <View style={styles.segment} accessibilityRole="radiogroup">
+        {MODES.map(({ mode: m, label, icon: Icon }) => {
+          const on = m === mode;
+          return (
+            <PressableScale
+              key={m}
+              onPress={() => setMode(m)}
+              scaleTo={0.96}
+              hapticOnPress="tap"
+              accessibilityRole="radio"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={`${label} appearance`}
+              style={[styles.segItem, on && styles.segOn]}
+            >
+              <Icon size={17} color={on ? colors.text : colors.textSecondary} strokeWidth={on ? 2.4 : 2} />
+              <Text variant="callout" color={on ? colors.text : colors.textSecondary} style={{ fontFamily: on ? fonts.bold : fonts.medium }}>
+                {label}
+              </Text>
+            </PressableScale>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -80,6 +126,8 @@ async function testServer(url: string): Promise<string | null> {
 }
 
 function ServerBlock() {
+  const colors = useColors();
+  const styles = useStyles();
   const { serverUrl, setServerUrl } = useSettings();
   const [value, setValue] = useState(serverUrl);
   const [status, setStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
@@ -211,6 +259,8 @@ function DeleteAccount({ close }: { close: () => void }) {
 }
 
 export default function Settings() {
+  const colors = useColors();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const { status, user, signOut } = useAuth();
   const s = useSettings();
@@ -223,7 +273,7 @@ export default function Settings() {
         <Text variant="title1" style={{ flex: 1 }} accessibilityRole="header">
           Settings
         </Text>
-        <IconButton icon={X} label="Close" background="rgba(255,255,255,0.08)" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
+        <IconButton icon={X} label="Close" background={colors.fillStrong} onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
       </View>
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 120 }} keyboardShouldPersistTaps="handled">
         <View style={styles.profile}>
@@ -250,6 +300,8 @@ export default function Settings() {
         </Group>
 
         <Group title="Look & feel">
+          <Appearance />
+          <View style={styles.sep} />
           <Toggle label="Living artwork" hint="Animated, blurred cover behind the player" value={s.livingBackground} onChange={() => s.toggle('livingBackground')} />
           <View style={styles.sep} />
           <Toggle label="Reduce transparency" hint="Solid surfaces instead of glass" value={s.reduceTransparency} onChange={() => s.toggle('reduceTransparency')} />
@@ -327,13 +379,16 @@ export default function Settings() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.bg },
   head: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: GUTTER, paddingBottom: 8 },
-  profile: { flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: GUTTER, marginTop: 14, padding: 16, borderRadius: radius.lg, backgroundColor: 'rgba(255,255,255,0.05)' },
+  profile: { flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: GUTTER, marginTop: 14, padding: 16, borderRadius: radius.lg, backgroundColor: colors.fill },
   avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.surfaceHigh, alignItems: 'center', justifyContent: 'center' },
-  group: { marginHorizontal: GUTTER, borderRadius: radius.lg, backgroundColor: 'rgba(255,255,255,0.05)', overflow: 'hidden' },
+  group: { marginHorizontal: GUTTER, borderRadius: radius.lg, backgroundColor: colors.fill, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, minHeight: 54, paddingVertical: 10 },
   sep: { height: StyleSheet.hairlineWidth, backgroundColor: colors.stroke, marginLeft: 16 },
   inline: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-});
+  segment: { flexDirection: 'row', padding: 3, borderRadius: 14, backgroundColor: colors.fill, gap: 3 },
+  segItem: { flex: 1, height: 40, borderRadius: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  segOn: { backgroundColor: colors.surfaceHigh, shadowColor: '#000', shadowOpacity: colors.scheme === 'dark' ? 0 : 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: colors.scheme === 'dark' ? 0 : 1 },
+}));

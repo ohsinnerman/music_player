@@ -1,7 +1,7 @@
 import { memo, useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
-import { colors } from '@/theme';
+import { useColors } from '@/theme';
 
 function Bar({ delay, playing, color, height }: { delay: number; playing: boolean; color: string; height: number }) {
   const v = useSharedValue(0.35);
@@ -19,7 +19,9 @@ function Bar({ delay, playing, color, height }: { delay: number; playing: boolea
 }
 
 /** The little "now playing" bars. */
-export const Equalizer = memo(function Equalizer({ playing, color = colors.accent, size = 14 }: { playing: boolean; color?: string; size?: number }) {
+export const Equalizer = memo(function Equalizer({ playing, color: colorProp, size = 14 }: { playing: boolean; color?: string; size?: number }) {
+  const c = useColors();
+  const color = colorProp ?? c.accent;
   return (
     <View style={[styles.row, { height: size }]} accessibilityLabel={playing ? 'Now playing' : 'Paused'}>
       <Bar delay={0} playing={playing} color={color} height={size} />

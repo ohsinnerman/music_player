@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { setSleepTimer } from '@/player/engine';
 import { usePlayer } from '@/player/store';
-import { colors, GUTTER } from '@/theme';
+import { GUTTER, useColors } from '@/theme';
 import { PressableScale } from '../ui/PressableScale';
 import { openSheet } from '../ui/Sheet';
 import { Text } from '../ui/Text';
@@ -18,6 +18,7 @@ const OPTIONS: { label: string; value: number | 'track' }[] = [
 ];
 
 function SleepTimerBody({ close }: { close: () => void }) {
+  const colors = useColors();
   const sleepAt = usePlayer((s) => s.sleepAt);
   const [openedAt] = useState(() => Date.now());
   const remaining = sleepAt && sleepAt > 0 ? Math.max(1, Math.round((sleepAt - openedAt) / 60_000)) : null;

@@ -5,7 +5,7 @@ import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
 import type { Artist, CatalogItem, Genre, PlayContext, Section, Track } from '@/api/types';
 import { openItem } from '@/lib/nav';
 import { player } from '@/player/engine';
-import { colors, fonts, GUTTER, radius } from '@/theme';
+import { GUTTER, fonts, radius, useColors } from '@/theme';
 import { openTrackActions } from '../sheets/TrackActions';
 import { PressableScale } from '../ui/PressableScale';
 import { Text } from '../ui/Text';
@@ -96,6 +96,7 @@ export const QuickPicks = memo(function QuickPicks({ section }: { section: Secti
 /* ───────── Chart: editorial serif numerals ───────── */
 
 export const ChartList = memo(function ChartList({ section, initial = 5 }: { section: Section; initial?: number }) {
+  const colors = useColors();
   const tracks = useMemo(() => tracksOf(section.items), [section.items]);
   const [expanded, setExpanded] = useState(false);
   const shown = expanded ? tracks : tracks.slice(0, initial);

@@ -4,7 +4,7 @@ import Animated, { FadeInUp, FadeOutUp, LinearTransition } from 'react-native-re
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { create } from 'zustand';
 import { haptic } from '@/lib/haptics';
-import { colors } from '@/theme';
+import { useColors } from '@/theme';
 import { Glass } from './Glass';
 import { Text } from './Text';
 
@@ -27,11 +27,11 @@ export function toast(message: string, kind: Kind = 'info') {
 }
 
 const ICON = { info: Info, success: CircleCheck, error: CircleAlert } as const;
-const TINT = { info: colors.text, success: colors.success, error: colors.danger } as const;
 
 export function ToastHost() {
   const items = useToasts((s) => s.items);
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { paddingTop: insets.top + 8, alignItems: 'center' }]}>
       {items.map((t) => {
@@ -40,7 +40,7 @@ export function ToastHost() {
           <Animated.View key={t.id} entering={FadeInUp.springify().damping(18)} exiting={FadeOutUp.duration(180)} layout={LinearTransition} style={{ marginBottom: 8 }}>
             <Glass radius={22} intensity={60} style={styles.toast}>
               <View style={styles.row} accessibilityLiveRegion="polite">
-                <Icon size={18} color={TINT[t.kind]} strokeWidth={2.4} />
+                <Icon size={18} color={t.kind === 'info' ? colors.text : t.kind === 'success' ? colors.success : colors.danger} strokeWidth={2.4} />
                 <Text variant="callout" numberOfLines={2} style={{ flexShrink: 1 }}>
                   {t.message}
                 </Text>

@@ -12,7 +12,8 @@ import { PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
 import { art } from '@/lib/format';
 import { checkServerUrl, getServerUrl, useSettings } from '@/settings/store';
-import { colors, fonts, GUTTER, radius } from '@/theme';
+import { alpha } from '@/lib/palette';
+import { GUTTER, fonts, makeStyles, radius, useColors } from '@/theme';
 
 const FALLBACK = [
   ['#FF5A36', '#FFB13B'],
@@ -47,6 +48,8 @@ const Column = memo(function Column({ items, size, speed, offset, reverse }: { i
 });
 
 export default function Onboarding() {
+  const colors = useColors();
+  const styles = useStyles();
   const { width: W, height: H } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const setOnboarded = useSettings((s) => s.setOnboarded);
@@ -83,7 +86,7 @@ export default function Onboarding() {
           <Column key={i} items={c} size={size} speed={38000 + i * 9000} offset={i === 1 ? -size / 2 : 0} reverse={i === 1} />
         ))}
       </View>
-      <LinearGradient pointerEvents="none" colors={['rgba(8,8,11,0.2)', 'rgba(8,8,11,0.55)', colors.bg, colors.bg]} locations={[0, 0.38, 0.62, 1]} style={StyleSheet.absoluteFill} />
+      <LinearGradient pointerEvents="none" colors={[alpha(colors.bg, 0.2), alpha(colors.bg, 0.55), colors.bg, colors.bg]} locations={[0, 0.38, 0.62, 1]} style={StyleSheet.absoluteFill} />
 
       <View style={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
         <Animated.View entering={FadeInDown.duration(600).delay(100)}>
@@ -116,10 +119,10 @@ export default function Onboarding() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.bg },
   wall: { position: 'absolute', flexDirection: 'row', gap: 12, justifyContent: 'center', transform: [{ rotate: '-10deg' }], opacity: 0.9 },
   content: { flex: 1, justifyContent: 'flex-end', paddingHorizontal: GUTTER + 4 },
   brand: { fontFamily: fonts.extrabold, fontSize: 15, letterSpacing: 6, color: colors.accent, textTransform: 'uppercase', marginBottom: 14 },
   server: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10 },
-});
+}));

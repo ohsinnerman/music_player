@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { Search } from 'lucide-react-native';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGenres, useHome } from '@/api/queries';
@@ -11,11 +11,13 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/States';
 import { Text } from '@/components/ui/Text';
 import { dockScrollWorklet } from '@/lib/chrome';
-import { colors, GUTTER, radius } from '@/theme';
+import { GUTTER, makeStyles, radius, useColors } from '@/theme';
 
 const AScroll = Animated.createAnimatedComponent(ScrollView);
 
 export default function Explore() {
+  const colors = useColors();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const g = useDockGeometry();
   const genres = useGenres();
@@ -39,8 +41,8 @@ export default function Explore() {
       </View>
 
       <PressableScale onPress={() => router.push('/search')} scaleTo={0.98} style={styles.search} accessibilityLabel="Search songs, artists and albums">
-        <Search size={20} color="#0B0B0F" strokeWidth={2.5} />
-        <Text variant="headline" color="#3A3A42">
+        <Search size={20} color={colors.textInverse} strokeWidth={2.5} />
+        <Text variant="headline" color={colors.textInverse} style={{ opacity: 0.7 }}>
           Songs, artists, albums…
         </Text>
       </PressableScale>
@@ -74,7 +76,7 @@ export default function Explore() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.bg },
   head: { paddingHorizontal: GUTTER, gap: 2 },
   search: {
@@ -90,4 +92,4 @@ const styles = StyleSheet.create({
   },
   block: { marginTop: 30 },
   genreSkeleton: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: GUTTER, justifyContent: 'space-between' },
-});
+}));

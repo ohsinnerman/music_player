@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Text as RNText, type TextProps } from 'react-native';
-import { colors, type TypeVariant, type } from '@/theme';
+import { type, type TypeVariant, useColors } from '@/theme';
 
 export interface AppTextProps extends TextProps {
   variant?: TypeVariant;
@@ -9,14 +9,9 @@ export interface AppTextProps extends TextProps {
   align?: 'left' | 'center' | 'right';
 }
 
-const toneColor = {
-  primary: colors.text,
-  secondary: colors.textSecondary,
-  tertiary: colors.textTertiary,
-  accent: colors.accent,
-} as const;
-
 export const Text = memo(function Text({ variant = 'body', color, tone = 'primary', align, style, ...rest }: AppTextProps) {
+  const c = useColors();
+  const toneColor = { primary: c.text, secondary: c.textSecondary, tertiary: c.textTertiary, accent: c.accent } as const;
   return (
     <RNText
       allowFontScaling

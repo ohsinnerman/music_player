@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { type SharedValue, interpolate, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '@/theme';
+import { makeStyles, useColors } from '@/theme';
 import { Glass } from './Glass';
 import { PressableScale } from './PressableScale';
 import { Text } from './Text';
@@ -14,6 +14,8 @@ import { Text } from './Text';
  * there, and a frosted bar + title that fade in once you scroll past the hero.
  */
 export function TopBar({ scrollY, title, threshold = 260, right }: { scrollY: SharedValue<number>; title: string; threshold?: number; right?: ReactNode }) {
+  const colors = useColors();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const barStyle = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [threshold - 80, threshold], [0, 1], 'clamp') }));
   const titleStyle = useAnimatedStyle(() => ({
@@ -48,11 +50,11 @@ export function TopBar({ scrollY, title, threshold = 260, right }: { scrollY: Sh
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   wrap: { position: 'absolute', left: 0, right: 0, top: 0, zIndex: 10 },
   row: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 },
   back: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, paddingHorizontal: 12 },
   right: { minWidth: 40, alignItems: 'flex-end' },
   hairline: { position: 'absolute', left: 0, right: 0, bottom: 0, height: StyleSheet.hairlineWidth, backgroundColor: colors.stroke },
-});
+}));

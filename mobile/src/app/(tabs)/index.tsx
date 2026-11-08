@@ -17,9 +17,11 @@ import { Text } from '@/components/ui/Text';
 import { useRecentlyPlayed } from '@/library/hooks';
 import { dockScrollWorklet } from '@/lib/chrome';
 import { greeting } from '@/lib/format';
-import { colors, fonts, GUTTER } from '@/theme';
+import { GUTTER, fonts, makeStyles, useColors } from '@/theme';
 
 function Avatar() {
+  const colors = useColors();
+  const styles = useStyles();
   const user = useAuth((s) => s.user);
   const initial = user?.displayName?.trim().charAt(0).toUpperCase();
   return (
@@ -36,6 +38,7 @@ function Avatar() {
 }
 
 function Header() {
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const name = useAuth((s) => s.user?.displayName?.split(' ')[0]);
   return (
@@ -59,6 +62,8 @@ function Header() {
 type Row = { type: 'section'; section: Section } | { type: 'recent' };
 
 export default function Home() {
+  const colors = useColors();
+  const styles = useStyles();
   const { data, isLoading, error, refetch } = useHome();
   const recent = useRecentlyPlayed(6);
   const g = useDockGeometry();
@@ -103,7 +108,7 @@ export default function Home() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: GUTTER, paddingBottom: 18 },
   avatar: {
@@ -111,11 +116,11 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 21,
     marginTop: 6,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.fill,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.strokeStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
   section: { marginBottom: 34 },
-});
+}));

@@ -53,7 +53,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     // Android 13+: lets the media notification (lock-screen controls) appear.
     permissions: ['android.permission.POST_NOTIFICATIONS'],
-    softwareKeyboardLayoutMode: 'pan',
+    // Edge-to-edge: the window isn't resized; screens/sheets lift themselves above the IME.
+    softwareKeyboardLayoutMode: 'resize',
   },
   plugins: [
     'expo-router',

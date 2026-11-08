@@ -5,7 +5,7 @@ import type { AppTextProps } from './Text';
 import { Text } from './Text';
 
 /** Single-line text that gently scrolls when it doesn't fit (like Apple Music's now-playing title). */
-export const Marquee = memo(function Marquee({ children, ...textProps }: AppTextProps & { children: string }) {
+export const Marquee = memo(function Marquee({ children, active = true, ...textProps }: AppTextProps & { children: string; active?: boolean }) {
   const [box, setBox] = useState(0);
   const [content, setContent] = useState(0);
   const x = useSharedValue(0);
@@ -14,7 +14,7 @@ export const Marquee = memo(function Marquee({ children, ...textProps }: AppText
   useEffect(() => {
     cancelAnimation(x);
     x.value = 0;
-    if (box > 0 && overflow > 4) {
+    if (active && box > 0 && overflow > 4) {
       const distance = content + 32;
       const duration = distance * 32;
       x.value = withDelay(
@@ -27,7 +27,7 @@ export const Marquee = memo(function Marquee({ children, ...textProps }: AppText
       );
     }
     return () => cancelAnimation(x);
-  }, [overflow, box, content, children, x]);
+  }, [overflow, box, content, children, x, active]);
 
   const style = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
 

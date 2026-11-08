@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { X } from 'lucide-react-native';
 import { type ComponentRef, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, type TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, type TextInput, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '@/api/client';
@@ -15,12 +15,14 @@ import { Text } from '@/components/ui/Text';
 import { TextField } from '@/components/ui/TextField';
 import { toast } from '@/components/ui/Toast';
 import { haptic } from '@/lib/haptics';
-import { colors, GUTTER, radius, spring } from '@/theme';
+import { GUTTER, makeStyles, radius, spring, useColors } from '@/theme';
 
 type InputRef = ComponentRef<typeof TextInput>;
 type Mode = 'signup' | 'signin';
 
 function Segmented({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) {
+  const colors = useColors();
+  const styles = useStyles();
   const x = useSharedValue(mode === 'signup' ? 0 : 1);
   const [w, setW] = useState(0);
   const lens = useAnimatedStyle(() => ({ transform: [{ translateX: x.value * (w / 2) }], width: w / 2 - 4 }));
@@ -43,6 +45,8 @@ function Segmented({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void
 }
 
 export default function AuthScreen() {
+  const colors = useColors();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<Mode>('signup');
@@ -91,12 +95,12 @@ export default function AuthScreen() {
 
   return (
     <View style={styles.root}>
-      <LinearGradient colors={['#2A1410', '#160B12', colors.bg]} locations={[0, 0.4, 0.8]} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={colors.scheme === 'dark' ? ['#2A1410', '#160B12', colors.bg] : ['#FFE4DA', '#FFF3EE', colors.bg]} locations={[0, 0.4, 0.8]} style={StyleSheet.absoluteFill} />
       <View style={[styles.glow, { top: -120 }]} />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 32, paddingHorizontal: GUTTER }}>
           <View style={{ alignItems: 'flex-end' }}>
-            <IconButton icon={X} label="Close" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} background="rgba(255,255,255,0.08)" />
+            <IconButton icon={X} label="Close" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} background={colors.fillStrong} />
           </View>
           <Text variant="display" style={{ marginTop: 20 }}>
             {mode === 'signup' ? 'Hello there.' : 'Welcome back.'}
@@ -166,11 +170,11 @@ export default function AuthScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.bg },
   glow: { position: 'absolute', alignSelf: 'center', width: 420, height: 420, borderRadius: 210, backgroundColor: 'rgba(255,90,54,0.18)' },
   card: {},
-  seg: { flexDirection: 'row', height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.06)', padding: 2 },
-  segLens: { position: 'absolute', top: 2, left: 2, bottom: 2, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.14)' },
+  seg: { flexDirection: 'row', height: 44, borderRadius: 22, backgroundColor: colors.fill, padding: 2 },
+  segLens: { position: 'absolute', top: 2, left: 2, bottom: 2, borderRadius: 20, backgroundColor: colors.fillStrong },
   segBtn: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-});
+}));

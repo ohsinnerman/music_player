@@ -1,6 +1,6 @@
 import { Redirect, Tabs } from 'expo-router';
 import { useSettings } from '@/settings/store';
-import { colors } from '@/theme';
+import { useColors } from '@/theme';
 
 /**
  * Tabs keep each tab's scroll position and state alive. The visible tab bar
@@ -8,6 +8,7 @@ import { colors } from '@/theme';
  * over detail screens too and blur everything beneath it.
  */
 export default function TabsLayout() {
+  const colors = useColors();
   const onboarded = useSettings((s) => s.onboarded);
   if (!onboarded) return <Redirect href="/onboarding" />;
   return (

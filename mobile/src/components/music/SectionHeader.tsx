@@ -1,7 +1,7 @@
 import { ChevronRight } from 'lucide-react-native';
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { colors, GUTTER } from '@/theme';
+import { GUTTER, useColors } from '@/theme';
 import { PressableScale } from '../ui/PressableScale';
 import { Text } from '../ui/Text';
 
@@ -16,6 +16,7 @@ export const SectionHeader = memo(function SectionHeader({
   onSeeAll?: () => void;
   seeAllLabel?: string;
 }) {
+  const colors = useColors();
   return (
     <View style={styles.wrap}>
       <View style={{ flex: 1 }}>

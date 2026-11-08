@@ -2,7 +2,7 @@ import { Eye, EyeOff } from 'lucide-react-native';
 import { type ComponentRef, forwardRef, useState } from 'react';
 import { StyleSheet, TextInput, type TextInputProps, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { colors, fonts, radius } from '@/theme';
+import { fonts, makeStyles, radius, useColors } from '@/theme';
 import { IconButton } from './IconButton';
 import { Text } from './Text';
 
@@ -13,11 +13,13 @@ export interface TextFieldProps extends TextInputProps {
 }
 
 export const TextField = forwardRef<ComponentRef<typeof TextInput>, TextFieldProps>(function TextField({ label, error, secure, style, onFocus, onBlur, ...rest }, ref) {
+  const colors = useColors();
+  const styles = useStyles();
   const [hidden, setHidden] = useState(!!secure);
   const focus = useSharedValue(0);
   const ring = useAnimatedStyle(() => ({
-    borderColor: error ? colors.danger : focus.value ? 'rgba(255,255,255,0.32)' : colors.strokeStrong,
-    backgroundColor: focus.value ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.05)',
+    borderColor: error ? colors.danger : focus.value ? colors.hairlineLight : colors.strokeStrong,
+    backgroundColor: focus.value ? colors.fillStrong : colors.fill,
   }));
 
   return (
@@ -57,7 +59,7 @@ export const TextField = forwardRef<ComponentRef<typeof TextInput>, TextFieldPro
   );
 });
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   box: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -68,4 +70,4 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   input: { flex: 1, color: colors.text, fontFamily: fonts.medium, fontSize: 16, paddingVertical: 12, outlineWidth: 0 },
-});
+}));

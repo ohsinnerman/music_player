@@ -5,7 +5,7 @@ import { memo } from 'react';
 import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 import type { Artwork as ArtworkT } from '@/api/types';
 import { art } from '@/lib/format';
-import { colors, radius as R } from '@/theme';
+import { radius as R, useColors } from '@/theme';
 
 export interface ArtworkProps {
   artwork?: ArtworkT;
@@ -21,7 +21,6 @@ export interface ArtworkProps {
   priority?: 'low' | 'normal' | 'high';
 }
 
-const placeholderColors = ['#23232D', '#16161C'] as const;
 
 export const Artwork = memo(function Artwork({
   artwork,
@@ -34,6 +33,7 @@ export const Artwork = memo(function Artwork({
   bordered = true,
   priority = 'normal',
 }: ArtworkProps) {
+  const colors = useColors();
   const q = quality ?? (size && size <= 64 ? 'small' : size && size >= 300 ? 'large' : 'medium');
   const src = uri ?? art(artwork, q);
   const r = round ? 9999 : radius;
@@ -52,7 +52,7 @@ export const Artwork = memo(function Artwork({
           priority={priority}
         />
       ) : (
-        <LinearGradient colors={placeholderColors} style={[StyleSheet.absoluteFill, styles.center]}>
+        <LinearGradient colors={[colors.surfaceHigh, colors.surface]} style={[StyleSheet.absoluteFill, styles.center]}>
           <Music2 size={size ? Math.max(14, size * 0.32) : 32} color={colors.textQuaternary} strokeWidth={1.75} />
         </LinearGradient>
       )}

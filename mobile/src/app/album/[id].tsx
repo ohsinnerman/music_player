@@ -8,9 +8,10 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Text } from '@/components/ui/Text';
 import { albumMeta, artistNames } from '@/lib/format';
 import { openArtist } from '@/lib/nav';
-import { colors, GUTTER } from '@/theme';
+import { GUTTER, useColors } from '@/theme';
 
 export default function AlbumScreen() {
+  const colors = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, isLoading, error, refetch } = useAlbum(id);
   const tracks = data?.tracks ?? [];

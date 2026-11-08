@@ -19,11 +19,12 @@ import { type LibraryPlaylist, useLikedTracks, usePlaylists, useRecentlyPlayed }
 import { dockScrollWorklet } from '@/lib/chrome';
 import { openItem } from '@/lib/nav';
 import { player } from '@/player/engine';
-import { colors, GUTTER, radius } from '@/theme';
+import { GUTTER, makeStyles, radius, useColors } from '@/theme';
 
 type Filter = 'all' | 'playlists' | 'recent';
 
 function LikedTile() {
+  const styles = useStyles();
   const { tracks } = useLikedTracks();
   return (
     <PressableScale onPress={() => router.push('/liked')} scaleTo={0.98} accessibilityLabel={`Liked Songs, ${tracks.length} songs`}>
@@ -44,6 +45,8 @@ function LikedTile() {
 }
 
 function PlaylistRow({ p }: { p: LibraryPlaylist }) {
+  const colors = useColors();
+  const styles = useStyles();
   return (
     <PressableScale onPress={() => openItem(p)} dim scaleTo={0.985} style={styles.row} accessibilityLabel={`${p.title}, playlist`}>
       {p.artwork?.small || p.artwork?.medium ? (
@@ -66,6 +69,8 @@ function PlaylistRow({ p }: { p: LibraryPlaylist }) {
 }
 
 export default function Library() {
+  const colors = useColors();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const { width: W } = useWindowDimensions();
   const g = useDockGeometry();
@@ -83,7 +88,7 @@ export default function Library() {
         <Text variant="largeTitle" style={{ flex: 1 }} accessibilityRole="header">
           Library
         </Text>
-        <IconButton icon={Plus} label="New playlist" background="rgba(255,255,255,0.08)" onPress={() => openCreatePlaylist()} />
+        <IconButton icon={Plus} label="New playlist" background={colors.fillStrong} onPress={() => openCreatePlaylist()} />
       </View>
 
       <View style={styles.chips}>
@@ -151,15 +156,15 @@ export default function Library() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.bg },
   head: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: GUTTER },
   chips: { flexDirection: 'row', gap: 8, paddingHorizontal: GUTTER, marginTop: 14 },
-  syncCard: { marginHorizontal: GUTTER, marginTop: 16, padding: 16, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.strokeStrong, gap: 4 },
+  syncCard: { marginHorizontal: GUTTER, marginTop: 16, padding: 16, borderRadius: radius.md, backgroundColor: colors.fill, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.strokeStrong, gap: 4 },
   liked: { height: 96, borderRadius: radius.lg, flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 20, overflow: 'hidden' },
   likedGlyph: { position: 'absolute', right: -8, bottom: -38, fontSize: 130, color: 'rgba(255,255,255,0.12)' },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: GUTTER, marginBottom: 12 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: GUTTER, paddingVertical: 7 },
   emptyArt: { width: 60, height: 60, borderRadius: radius.sm, backgroundColor: colors.surfaceHigh, alignItems: 'center', justifyContent: 'center' },
   recentGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, paddingHorizontal: GUTTER },
-});
+}));

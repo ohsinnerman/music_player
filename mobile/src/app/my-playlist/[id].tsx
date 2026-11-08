@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ListMusic, Pencil, Search, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { CollectionScreen } from '@/components/music/CollectionScreen';
 import { removeExtra } from '@/components/sheets/TrackActions';
 import { Button } from '@/components/ui/Button';
@@ -11,7 +11,7 @@ import { EmptyState } from '@/components/ui/States';
 import { Text } from '@/components/ui/Text';
 import { TextField } from '@/components/ui/TextField';
 import { deletePlaylist, removeFromPlaylist, renamePlaylist, useLibraryPlaylist } from '@/library/hooks';
-import { colors, GUTTER, radius } from '@/theme';
+import { GUTTER, makeStyles, radius, useColors } from '@/theme';
 
 function Rename({ id, current, close }: { id: string; current: string; close: () => void }) {
   const [name, setName] = useState(current);
@@ -25,6 +25,8 @@ function Rename({ id, current, close }: { id: string; current: string; close: ()
 }
 
 export default function MyPlaylistScreen() {
+  const colors = useColors();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { playlist, isLoading, error } = useLibraryPlaylist(id);
   const tracks = playlist?.tracks ?? [];
@@ -72,6 +74,6 @@ export default function MyPlaylistScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   emptyArt: { width: 220, height: 220, borderRadius: radius.lg, backgroundColor: colors.surfaceHigh, alignItems: 'center', justifyContent: 'center' },
-});
+}));

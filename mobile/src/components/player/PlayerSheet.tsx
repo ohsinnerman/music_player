@@ -25,7 +25,7 @@ import { player } from '@/player/engine';
 import { clock, useCurrentTrack, usePlayer } from '@/player/store';
 import { closePlayer, openPlayer, usePlayerUi } from '@/player/ui';
 import { useSettings } from '@/settings/store';
-import { colors, GUTTER, spring } from '@/theme';
+import { GUTTER, ThemeScope, darkColors, makeStyles, spring, useColors } from '@/theme';
 import { useDockGeometry } from '../dock/geometry';
 import { PreviewBadge } from '../music/Badges';
 import { openSleepTimer } from '../sheets/SleepTimer';
@@ -74,6 +74,7 @@ function contextLabel(type?: string) {
 }
 
 const LikeButton = memo(function LikeButton({ track, size = 44 }: { track: Track; size?: number }) {
+  const colors = useColors();
   const liked = useIsLiked(track.id);
   const pop = useSharedValue(1);
   const style = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
@@ -98,6 +99,8 @@ const LikeButton = memo(function LikeButton({ track, size = 44 }: { track: Track
 });
 
 export function PlayerSheet() {
+  const colors = useColors();
+  const styles = useStyles();
   const g = useDockGeometry();
   const { W, H, insets } = g;
   const track = useCurrentTrack();
@@ -154,6 +157,13 @@ export function PlayerSheet() {
     () => p.value > 0.02,
     (show, prev) => {
       if (show && !prev) scheduleOnRN(setBgMounted, true);
+    },
+  );
+  // Fully collapsed again → drop the (GPU-heavy) living background entirely.
+  useAnimatedReaction(
+    () => p.value < 0.001,
+    (closed, prev) => {
+      if (closed && prev === false) scheduleOnRN(setBgMounted, false);
     },
   );
 
@@ -323,7 +333,7 @@ export function PlayerSheet() {
           {bgMounted && living ? (
             <LivingBackground uri={art(track.artwork, 'medium')} palette={palette} animate={isOpen} />
           ) : (
-            <LinearGradient colors={[palette.dark, colors.bg]} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={[palette.dark, darkColors.bg]} style={StyleSheet.absoluteFill} />
           )}
         </Animated.View>
 
@@ -352,6 +362,8 @@ export function PlayerSheet() {
         </Animated.View>
 
         {/* Full player */}
+        {/* The full player always sits on dark, artwork-tinted colour, so it keeps dark tokens in light mode too. */}
+        <ThemeScope scheme="dark">
         <Animated.View style={[styles.full, { width: W, height: H }, fullStyle]} pointerEvents={isOpen ? 'box-none' : 'none'}>
           <GestureDetector gesture={fullPan}>
             <View style={[styles.dragZone, { height: zoneHeight }]}>
@@ -377,7 +389,7 @@ export function PlayerSheet() {
               {/* Big title block (artwork mode) */}
               <Animated.View style={[styles.titleBlock, { top: titleY, left: GUTTER + 4, right: GUTTER - 4 }, titleBlockStyle]} pointerEvents={panel === 'none' ? 'box-none' : 'none'}>
                 <View style={{ flex: 1, gap: 4 }}>
-                  <Marquee variant="title1" style={{ fontSize: 24 }}>
+                  <Marquee variant="title1" style={{ fontSize: 24 }} active={isOpen && panel === 'none'}>
                     {track.title}
                   </Marquee>
                   <View style={styles.metaRow}>
@@ -437,7 +449,7 @@ export function PlayerSheet() {
               icon={MicVocal}
               label="Lyrics"
               active={panel === 'lyrics'}
-              color={colors.textSecondary}
+              color={darkColors.textSecondary}
               onPress={() => setPanel('lyrics')}
               background={panel === 'lyrics' ? 'rgba(255,255,255,0.12)' : undefined}
             />
@@ -450,12 +462,13 @@ export function PlayerSheet() {
               icon={ListMusic}
               label="Queue"
               active={panel === 'queue'}
-              color={colors.textSecondary}
+              color={darkColors.textSecondary}
               onPress={() => setPanel('queue')}
               background={panel === 'queue' ? 'rgba(255,255,255,0.12)' : undefined}
             />
           </View>
         </Animated.View>
+        </ThemeScope>
       </Animated.View>
 
       {/* Shared artwork, above the sheet so it can travel freely */}
@@ -470,13 +483,13 @@ export function PlayerSheet() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   sheet: { position: 'absolute', overflow: 'hidden' },
   miniRow: { position: 'absolute', left: 0, right: 0, top: 0, flexDirection: 'row', alignItems: 'center' },
   miniHit: { flex: 1, height: '100%', flexDirection: 'row', alignItems: 'center', gap: 4 },
   miniBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  miniTrack: { position: 'absolute', left: 22, right: 22, bottom: 0, height: 2, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 1, overflow: 'hidden' },
-  miniFill: { height: '100%', backgroundColor: 'rgba(255,255,255,0.7)' },
+  miniTrack: { position: 'absolute', left: 22, right: 22, bottom: 0, height: 2, backgroundColor: colors.fill, borderRadius: 1, overflow: 'hidden' },
+  miniFill: { height: '100%', backgroundColor: colors.textSecondary },
   full: { position: 'absolute', left: 0, top: 0 },
   dragZone: { position: 'absolute', left: 0, right: 0, top: 0 },
   header: { position: 'absolute', left: 8, right: 8, height: 52, flexDirection: 'row', alignItems: 'center' },
@@ -487,7 +500,7 @@ const styles = StyleSheet.create({
   panelBody: { position: 'absolute', left: 0, right: 0 },
   abs: { position: 'absolute' },
   bottomBar: { position: 'absolute', height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sourceChip: { paddingHorizontal: 12, height: 26, borderRadius: 13, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.strokeStrong, justifyContent: 'center' },
+  sourceChip: { paddingHorizontal: 12, height: 26, borderRadius: 13, borderWidth: StyleSheet.hairlineWidth, borderColor: darkColors.strokeStrong, justifyContent: 'center' },
   art: { position: 'absolute', left: 0, top: 0, overflow: 'hidden', backgroundColor: colors.surface },
   artShadow: { shadowColor: '#000', shadowRadius: 30, shadowOffset: { width: 0, height: 18 } },
-});
+}));

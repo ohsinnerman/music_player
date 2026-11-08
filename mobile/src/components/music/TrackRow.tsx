@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import type { Track } from '@/api/types';
 import { artistNames, formatTime } from '@/lib/format';
 import { usePlayer } from '@/player/store';
-import { colors, fonts, GUTTER, radius } from '@/theme';
+import { GUTTER, fonts, radius, useColors } from '@/theme';
 import { type TrackActionExtra, openTrackActions } from '../sheets/TrackActions';
 import { Artwork } from '../ui/Artwork';
 import { IconButton } from '../ui/IconButton';
@@ -25,6 +25,7 @@ export interface TrackRowProps {
 }
 
 export const TrackRow = memo(function TrackRow({ track, onPress, number, showArtwork = true, showDuration = false, extraActions, gutter = GUTTER }: TrackRowProps) {
+  const colors = useColors();
   const isCurrent = usePlayer((s) => s.queue[s.index]?.id === track.id);
   const playing = usePlayer((s) => s.isPlaying && s.queue[s.index]?.id === track.id);
 

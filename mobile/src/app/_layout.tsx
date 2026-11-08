@@ -9,11 +9,11 @@ import { PlusJakartaSans_800ExtraBold } from '@expo-google-fonts/plus-jakarta-sa
 import { QueryClientProvider } from '@tanstack/react-query';
 import { BlurTargetView } from 'expo-blur';
 import { useFonts } from 'expo-font';
-import { DarkTheme, SplashScreen, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider, SplashScreen, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
-import { useEffect, useSyncExternalStore } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { queryClient } from '@/api/queries';
@@ -26,16 +26,10 @@ import { ToastHost } from '@/components/ui/Toast';
 import { ChromeProvider, useBlurTarget } from '@/lib/chrome';
 import { player } from '@/player/engine';
 import { useSettings } from '@/settings/store';
-import { colors } from '@/theme';
+import { ThemeProvider, useColors } from '@/theme';
 import '@/library/hooks'; // registers guest → account library sync
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
-SystemUI.setBackgroundColorAsync(colors.bg).catch(() => undefined);
-
-const navTheme = {
-  ...DarkTheme,
-  colors: { ...DarkTheme.colors, background: colors.bg, card: colors.bg, primary: colors.accent, text: colors.text, border: colors.stroke },
-};
 
 const subscribeHydration = (cb: () => void) => useSettings.persist.onFinishHydration(cb);
 const isHydrated = () => useSettings.persist.hasHydrated();
@@ -46,32 +40,48 @@ function useSettingsHydrated() {
 
 function Shell() {
   const target = useBlurTarget();
+  const colors = useColors();
+  const navTheme = useMemo(() => {
+    const base = colors.scheme === 'dark' ? DarkTheme : DefaultTheme;
+    return {
+      ...base,
+      colors: { ...base.colors, background: colors.bg, card: colors.bg, primary: colors.accent, text: colors.text, border: colors.stroke },
+    };
+  }, [colors]);
+
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(colors.bg).catch(() => undefined);
+  }, [colors.bg]);
+
   return (
-    <View style={styles.root}>
-      <BlurTargetView ref={target} style={styles.root}>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: colors.bg },
-            animation: 'slide_from_right',
-            animationDuration: 280,
-            gestureEnabled: true,
-            fullScreenGestureEnabled: true,
-          }}
-        >
-          <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-          <Stack.Screen name="onboarding" options={{ animation: 'fade', gestureEnabled: false }} />
-          <Stack.Screen name="auth" options={{ animation: 'slide_from_bottom' }} />
-          <Stack.Screen name="search" options={{ animation: 'fade_from_bottom' }} />
-          <Stack.Screen name="settings" options={{ animation: 'slide_from_bottom' }} />
-        </Stack>
-      </BlurTargetView>
-      <GlassDock />
-      <PlayerSheet />
-      <SheetHost />
-      <ToastHost />
-      <PlaybackClock />
-    </View>
+    <NavThemeProvider value={navTheme}>
+      <StatusBar style={colors.scheme === 'dark' ? 'light' : 'dark'} />
+      <View style={{ flex: 1, backgroundColor: colors.bg }}>
+        <BlurTargetView ref={target} style={{ flex: 1, backgroundColor: colors.bg }}>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.bg },
+              animation: 'slide_from_right',
+              animationDuration: 280,
+              gestureEnabled: true,
+              fullScreenGestureEnabled: true,
+            }}
+          >
+            <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+            <Stack.Screen name="onboarding" options={{ animation: 'fade', gestureEnabled: false }} />
+            <Stack.Screen name="auth" options={{ animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="search" options={{ animation: 'fade_from_bottom' }} />
+            <Stack.Screen name="settings" options={{ animation: 'slide_from_bottom' }} />
+          </Stack>
+        </BlurTargetView>
+        <GlassDock />
+        <PlayerSheet />
+        <SheetHost />
+        <ToastHost />
+        <PlaybackClock />
+      </View>
+    </NavThemeProvider>
   );
 }
 
@@ -101,12 +111,11 @@ export default function RootLayout() {
   if (!ready) return null;
 
   return (
-    <GestureHandlerRootView style={styles.root}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <ThemeProvider value={navTheme}>
+          <ThemeProvider>
             <ChromeProvider>
-              <StatusBar style="light" />
               <Shell />
             </ChromeProvider>
           </ThemeProvider>
@@ -115,7 +124,3 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-});

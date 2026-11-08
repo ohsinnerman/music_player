@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react-native';
 import { memo } from 'react';
 import { type StyleProp, StyleSheet, type ViewStyle } from 'react-native';
-import { colors } from '@/theme';
+import { useColors } from '@/theme';
 import { PressableScale } from './PressableScale';
 
 export interface IconButtonProps {
@@ -29,7 +29,7 @@ export const IconButton = memo(function IconButton({
   label,
   size = 44,
   iconSize = 22,
-  color = colors.text,
+  color,
   fill,
   background,
   active,
@@ -38,6 +38,7 @@ export const IconButton = memo(function IconButton({
   disabled,
   haptic = 'tap',
 }: IconButtonProps) {
+  const colors = useColors();
   return (
     <PressableScale
       onPress={onPress}
@@ -50,7 +51,7 @@ export const IconButton = memo(function IconButton({
       hitSlop={Math.max(0, (44 - size) / 2)}
       style={[styles.base, { width: size, height: size, borderRadius: size / 2, backgroundColor: background, opacity: disabled ? 0.4 : 1 }, style]}
     >
-      <Icon size={iconSize} color={active ? colors.accent : color} fill={fill ?? 'transparent'} strokeWidth={strokeWidth} />
+      <Icon size={iconSize} color={active ? colors.accent : (color ?? colors.text)} fill={fill ?? 'transparent'} strokeWidth={strokeWidth} />
     </PressableScale>
   );
 });

@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { ChevronLeft, Clock3, Play, Search as SearchIcon, X } from 'lucide-react-native';
 import { type ComponentRef, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Keyboard, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Keyboard, ScrollView, TextInput, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGenres, useSearch } from '@/api/queries';
@@ -24,7 +24,7 @@ import { artistNames } from '@/lib/format';
 import { openItem } from '@/lib/nav';
 import { player } from '@/player/engine';
 import { useSettings } from '@/settings/store';
-import { colors, fonts, GUTTER, radius } from '@/theme';
+import { GUTTER, fonts, makeStyles, radius, useColors } from '@/theme';
 
 type Filter = 'all' | 'songs' | 'artists' | 'albums' | 'playlists';
 const FILTERS: { key: Filter; label: string }[] = [
@@ -45,6 +45,7 @@ function useDebounced<T>(value: T, ms: number) {
 }
 
 function TopResult({ item, tracks, onPick }: { item: CatalogItem; tracks: Track[]; onPick: () => void }) {
+  const styles = useStyles();
   if (item.kind === 'genre') return null;
   const isArtist = item.kind === 'artist';
   const title = isArtist ? item.name : item.title;
@@ -76,6 +77,7 @@ function TopResult({ item, tracks, onPick }: { item: CatalogItem; tracks: Track[
 }
 
 function Results({ data, filter, onPick }: { data: SearchResults; filter: Filter; onPick: () => void }) {
+  const styles = useStyles();
   const { width: W } = useWindowDimensions();
   const ctx = { type: 'search' as const, title: `“${data.query}”` };
   const playAt = (i: number) => {
@@ -197,6 +199,8 @@ function Results({ data, filter, onPick }: { data: SearchResults; filter: Filter
 }
 
 export default function SearchScreen() {
+  const colors = useColors();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const g = useDockGeometry();
   const input = useRef<ComponentRef<typeof TextInput>>(null);
@@ -244,7 +248,7 @@ export default function SearchScreen() {
               accessibilityLabel="Search"
             />
             {search.isFetching && showResults ? <ActivityIndicator size="small" color={colors.textSecondary} /> : null}
-            {text ? <IconButton icon={X} label="Clear search" size={32} iconSize={16} background="rgba(255,255,255,0.12)" onPress={() => setText('')} /> : null}
+            {text ? <IconButton icon={X} label="Clear search" size={32} iconSize={16} background={colors.fillStrong} onPress={() => setText('')} /> : null}
           </View>
         </Glass>
       </View>
@@ -298,7 +302,7 @@ export default function SearchScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.bg },
   bar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingRight: GUTTER, gap: 4 },
   field: { flex: 1, height: 48 },
@@ -306,9 +310,9 @@ const styles = StyleSheet.create({
   input: { flex: 1, color: colors.text, fontFamily: fonts.medium, fontSize: 16, paddingVertical: 0, outlineWidth: 0 },
   chipsWrap: { flexGrow: 0, flexShrink: 0, height: 52, marginTop: 6 },
   chips: { paddingHorizontal: GUTTER, gap: 8, alignItems: 'center' },
-  top: { marginHorizontal: GUTTER, padding: 16, borderRadius: radius.lg, backgroundColor: 'rgba(255,255,255,0.06)', flexDirection: 'row', alignItems: 'center', gap: 16 },
+  top: { marginHorizontal: GUTTER, padding: 16, borderRadius: radius.lg, backgroundColor: colors.fill, flexDirection: 'row', alignItems: 'center', gap: 16 },
   topPlay: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, paddingHorizontal: GUTTER, rowGap: 20 },
   artistRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: GUTTER, paddingVertical: 8 },
   recent: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: GUTTER, height: 48 },
-});
+}));

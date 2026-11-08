@@ -3,7 +3,7 @@ import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { Album, Artist, Playlist, Track } from '@/api/types';
 import { artistNames, compactNumber, year } from '@/lib/format';
-import { colors, radius } from '@/theme';
+import { radius, useColors } from '@/theme';
 import { Artwork } from '../ui/Artwork';
 import { PressableScale } from '../ui/PressableScale';
 import { Text } from '../ui/Text';
@@ -24,6 +24,7 @@ function subtitle(item: CardItem): string {
 }
 
 export const MediaCard = memo(function MediaCard({ item, size = 150, onPress, onLongPress }: { item: CardItem; size?: number; onPress: () => void; onLongPress?: () => void }) {
+  const colors = useColors();
   const title = item.kind === 'artist' ? item.name : item.title;
   const artwork = item.kind === 'artist' ? item.image : item.artwork;
   const round = item.kind === 'artist';

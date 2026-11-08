@@ -4,12 +4,13 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { player } from '@/player/engine';
 import { usePlayer } from '@/player/store';
-import { colors, spring } from '@/theme';
+import { makeStyles, spring, useColors } from '@/theme';
 import { IconButton } from '../ui/IconButton';
 import { PressableScale } from '../ui/PressableScale';
 
 /** Play ↔ pause with a springy cross-scale instead of a hard icon swap. */
 export const PlayPauseIcon = memo(function PlayPauseIcon({ playing, size, color }: { playing: boolean; size: number; color: string }) {
+  const styles = useStyles();
   const v = useSharedValue(playing ? 1 : 0);
   useEffect(() => {
     v.value = withSpring(playing ? 1 : 0, spring.snappy);
@@ -29,6 +30,8 @@ export const PlayPauseIcon = memo(function PlayPauseIcon({ playing, size, color 
 });
 
 export const Controls = memo(function Controls({ width }: { width: number }) {
+  const colors = useColors();
+  const styles = useStyles();
   const isPlaying = usePlayer((s) => s.isPlaying);
   const buffering = usePlayer((s) => s.isBuffering && !s.isPlaying);
   const shuffle = usePlayer((s) => s.shuffle);
@@ -60,7 +63,7 @@ export const Controls = memo(function Controls({ width }: { width: number }) {
   );
 });
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   center: { alignItems: 'center', justifyContent: 'center' },
   play: {
@@ -77,4 +80,4 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   dot: { position: 'absolute', bottom: 2, alignSelf: 'center', width: 4, height: 4, borderRadius: 2, backgroundColor: colors.accent },
-});
+}));

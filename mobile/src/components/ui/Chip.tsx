@@ -1,10 +1,12 @@
 import { memo } from 'react';
 import { StyleSheet } from 'react-native';
-import { colors, radius } from '@/theme';
+import { makeStyles, radius, useColors } from '@/theme';
 import { PressableScale } from './PressableScale';
 import { Text } from './Text';
 
 export const Chip = memo(function Chip({ label, active, onPress }: { label: string; active?: boolean; onPress?: () => void }) {
+  const colors = useColors();
+  const styles = useStyles();
   return (
     <PressableScale
       onPress={onPress}
@@ -12,15 +14,15 @@ export const Chip = memo(function Chip({ label, active, onPress }: { label: stri
       accessibilityState={{ selected: active }}
       style={[styles.chip, active ? styles.active : styles.idle]}
     >
-      <Text variant="callout" color={active ? '#0B0B0F' : colors.text} style={{ fontFamily: 'PlusJakartaSans_600SemiBold' }}>
+      <Text variant="callout" color={active ? colors.textInverse : colors.text} style={{ fontFamily: 'PlusJakartaSans_600SemiBold' }}>
         {label}
       </Text>
     </PressableScale>
   );
 });
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   chip: { height: 36, paddingHorizontal: 16, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
-  idle: { backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.strokeStrong },
+  idle: { backgroundColor: colors.fill, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.strokeStrong },
   active: { backgroundColor: colors.text },
-});
+}));

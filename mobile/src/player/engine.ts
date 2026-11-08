@@ -87,6 +87,8 @@ function onStatus(st: AudioPlaylistStatus & { error?: { message?: string } | str
   clock.at.value = now;
   clock.playing.value = st.playing;
   if (st.duration > 0) clock.duration.value = st.duration;
+  // The frame clock only runs while playing; keep the paused position exact.
+  if (!st.playing && !clock.scrubbing.value) clock.position.value = st.currentTime;
   useProgress.setState({ position: st.currentTime, duration: st.duration > 0 ? st.duration : useProgress.getState().duration });
 
   const s = usePlayer.getState();
@@ -172,6 +174,7 @@ export const player = {
       resumeAt = null;
       usePlayer.setState({ queue, original, index, context, shuffle, isBuffering: true });
       clock.base.value = 0;
+      clock.position.value = 0;
       clock.at.value = Date.now();
       useProgress.setState({ position: 0, duration: queue[index]!.durationMs / 1000 });
       clock.duration.value = queue[index]!.durationMs / 1000;
@@ -195,6 +198,11 @@ export const player = {
     void prepareSession();
     const p = ensure();
     activateLockScreen(s.queue[s.index]!);
+    // Finished the last song (repeat off)? Pressing play starts it again.
+    const { position, duration } = useProgress.getState();
+    if (resumeAt === null && duration > 0 && position >= duration - 0.75) {
+      void player.seek(0);
+    }
     p.play();
     if (resumeAt !== null) {
       const at = resumeAt;
@@ -233,6 +241,7 @@ export const player = {
   async seek(seconds: number) {
     const s = Math.max(0, seconds);
     clock.base.value = s;
+    clock.position.value = s;
     clock.at.value = Date.now();
     useProgress.setState({ position: s });
     await ensure().seekTo(s).catch(() => undefined);
@@ -358,6 +367,7 @@ export const player = {
       resumeAt = saved.position > 5 ? saved.position : null;
       const d = saved.queue[saved.index]!.durationMs / 1000;
       clock.base.value = saved.position;
+      clock.position.value = saved.position;
       clock.duration.value = d;
       useProgress.setState({ position: saved.position, duration: d });
       loadNative(saved.queue, saved.index);

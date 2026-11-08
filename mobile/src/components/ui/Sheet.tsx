@@ -1,11 +1,11 @@
 import { type ReactNode, useCallback, useEffect } from 'react';
-import { BackHandler, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { BackHandler, Keyboard, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 import Animated, { interpolate, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 import { create } from 'zustand';
-import { colors, spring } from '@/theme';
+import { makeStyles, spring } from '@/theme';
 import { Glass } from './Glass';
 
 type Render = (close: () => void) => ReactNode;
@@ -20,11 +20,29 @@ export function closeSheet() {
 }
 
 export function SheetHost() {
+  const styles = useStyles();
   const { render, open, id } = useSheetStore();
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const y = useSharedValue(height);
   const shown = useSharedValue(0);
+  const kb = useSharedValue(0);
+
+  // Lift the sheet above the keyboard (e.g. "New playlist" name field).
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const a = Keyboard.addListener(showEvt, (e) => {
+      kb.value = withTiming(e.endCoordinates.height, { duration: Platform.OS === 'ios' ? e.duration || 250 : 180 });
+    });
+    const b = Keyboard.addListener(hideEvt, () => {
+      kb.value = withTiming(0, { duration: 180 });
+    });
+    return () => {
+      a.remove();
+      b.remove();
+    };
+  }, [kb]);
 
   const clear = useCallback(() => useSheetStore.setState({ render: null }), []);
 
@@ -66,7 +84,7 @@ export function SheetHost() {
     },
   });
 
-  const panelStyle = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }] }));
+  const panelStyle = useAnimatedStyle(() => ({ transform: [{ translateY: y.value - kb.value }] }));
   const backdropStyle = useAnimatedStyle(() => ({ opacity: shown.value * interpolate(y.value, [0, 400], [1, 0.3], 'clamp') }));
 
   if (!render) return null;
@@ -77,7 +95,7 @@ export function SheetHost() {
       </Animated.View>
       <GestureDetector gesture={pan}>
         <Animated.View style={[styles.panelWrap, panelStyle]}>
-          <Glass radius={32} intensity={70} style={[styles.panel, { paddingBottom: insets.bottom + 16 }]}>
+          <Glass radius={32} intensity={70} style={[styles.panel, { paddingBottom: insets.bottom + 16, maxHeight: height - insets.top - 24 }]}>
             <View style={styles.handle} />
             {render(closeSheet)}
           </Glass>
@@ -87,9 +105,9 @@ export function SheetHost() {
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: { backgroundColor: 'rgba(0,0,0,0.5)' },
+const useStyles = makeStyles((colors) => ({
+  backdrop: { backgroundColor: colors.scrim },
   panelWrap: { position: 'absolute', left: 8, right: 8, bottom: 8 },
-  panel: { paddingTop: 10, backgroundColor: 'rgba(16,16,21,0.6)' },
+  panel: { paddingTop: 10, backgroundColor: colors.scheme === 'dark' ? 'rgba(16,16,21,0.6)' : 'rgba(255,255,255,0.6)' },
   handle: { alignSelf: 'center', width: 38, height: 5, borderRadius: 3, backgroundColor: colors.strokeStrong, marginBottom: 8 },
-});
+}));

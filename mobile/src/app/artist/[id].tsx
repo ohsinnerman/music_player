@@ -24,7 +24,8 @@ import { art, compactNumber } from '@/lib/format';
 import { openItem } from '@/lib/nav';
 import { player } from '@/player/engine';
 import { usePlayer } from '@/player/store';
-import { colors, GUTTER, radius } from '@/theme';
+import { alpha } from '@/lib/palette';
+import { GUTTER, makeStyles, radius, useColors } from '@/theme';
 
 function AlbumShelf({ title, albums }: { title: string; albums: Album[] }) {
   if (!albums.length) return null;
@@ -44,6 +45,8 @@ function AlbumShelf({ title, albums }: { title: string; albums: Album[] }) {
 }
 
 export default function ArtistScreen() {
+  const colors = useColors();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { width: W } = useWindowDimensions();
   const g = useDockGeometry();
@@ -77,7 +80,7 @@ export default function ArtistScreen() {
     <View style={styles.root}>
       <Animated.View style={[styles.hero, { height: HERO }, heroStyle]}>
         {heroUri ? <Image source={{ uri: heroUri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} priority="high" cachePolicy="memory-disk" /> : null}
-        <LinearGradient colors={['rgba(8,8,11,0.15)', 'rgba(8,8,11,0)', 'rgba(8,8,11,0.6)', colors.bg]} locations={[0, 0.3, 0.75, 1]} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={[alpha(colors.bg, 0.15), alpha(colors.bg, 0), alpha(colors.bg, 0.6), colors.bg]} locations={[0, 0.3, 0.75, 1]} style={StyleSheet.absoluteFill} />
       </Animated.View>
 
       <Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: g.contentInset }}>
@@ -167,7 +170,7 @@ export default function ArtistScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.bg },
   hero: { position: 'absolute', left: 0, right: 0, top: 0, backgroundColor: colors.surface },
   nameBlock: { paddingHorizontal: GUTTER, gap: 4, paddingBottom: 6 },
@@ -176,7 +179,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 44, lineHeight: 48, letterSpacing: -1.6 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: GUTTER, marginTop: 18 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 38, paddingHorizontal: 16, borderRadius: 19, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: colors.strokeStrong },
-  shuffle: { width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+  shuffle: { width: 46, height: 46, borderRadius: 23, backgroundColor: colors.fillStrong, alignItems: 'center', justifyContent: 'center' },
   play: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  about: { marginHorizontal: GUTTER, marginTop: 30, padding: 18, gap: 10, borderRadius: radius.lg, backgroundColor: 'rgba(255,255,255,0.05)' },
-});
+  about: { marginHorizontal: GUTTER, marginTop: 30, padding: 18, gap: 10, borderRadius: radius.lg, backgroundColor: colors.fill },
+}));

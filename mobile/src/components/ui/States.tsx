@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
 import { CloudOff, type LucideIcon, ServerCog } from 'lucide-react-native';
 import { memo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { ApiError } from '@/api/client';
-import { colors, GUTTER } from '@/theme';
+import { GUTTER, makeStyles, useColors } from '@/theme';
 import { Button } from './Button';
 import { Text } from './Text';
 
@@ -18,6 +18,8 @@ export const EmptyState = memo(function EmptyState({
   body?: string;
   action?: { label: string; onPress: () => void };
 }) {
+  const colors = useColors();
+  const styles = useStyles();
   return (
     <View style={styles.wrap}>
       <View style={styles.icon}>
@@ -38,6 +40,8 @@ export const EmptyState = memo(function EmptyState({
 
 /** Friendly error with the right next step (retry, or go set the server up). */
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  const colors = useColors();
+  const styles = useStyles();
   const e = error instanceof ApiError ? error : null;
   const serverProblem = e?.code === 'no_server' || e?.code === 'bad_server' || e?.code === 'insecure_server';
   return (
@@ -57,7 +61,7 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   wrap: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: GUTTER * 2, paddingVertical: 60, gap: 10 },
-  icon: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-});
+  icon: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.fill, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+}));

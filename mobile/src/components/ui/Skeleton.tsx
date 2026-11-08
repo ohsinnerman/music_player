@@ -1,7 +1,7 @@
 import { memo, useEffect } from 'react';
 import { type DimensionValue, StyleSheet, View, type ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
-import { GUTTER, colors, radius } from '@/theme';
+import { GUTTER, radius, useColors } from '@/theme';
 
 /** A soft breathing placeholder (no sweeping shimmer — calmer and cheaper). */
 export const Skeleton = memo(function Skeleton({
@@ -15,6 +15,7 @@ export const Skeleton = memo(function Skeleton({
   r?: number;
   style?: ViewStyle;
 }) {
+  const colors = useColors();
   const v = useSharedValue(0);
   useEffect(() => {
     v.value = withRepeat(withTiming(1, { duration: 900, easing: Easing.inOut(Easing.quad) }), -1, true);

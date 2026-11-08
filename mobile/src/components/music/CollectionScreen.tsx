@@ -10,7 +10,7 @@ import { art, tracksMeta } from '@/lib/format';
 import { alpha, usePalette } from '@/lib/palette';
 import { player } from '@/player/engine';
 import { usePlayer } from '@/player/store';
-import { colors, GUTTER, radius } from '@/theme';
+import { GUTTER, makeStyles, radius, useColors } from '@/theme';
 import { useDockGeometry } from '../dock/geometry';
 import type { TrackActionExtra } from '../sheets/TrackActions';
 import { Artwork } from '../ui/Artwork';
@@ -47,6 +47,8 @@ export interface CollectionScreenProps {
 const AFlatList = Animated.FlatList<Track>;
 
 export function CollectionScreen(props: CollectionScreenProps) {
+  const colors = useColors();
+  const styles = useStyles();
   const { title, kindLabel, subtitle, onSubtitlePress, artwork, customArt, wash, tracks, context, isLoading, error, onRetry, numbered, actions, footer, empty, trackExtraActions } = props;
   const { width: W } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -160,13 +162,13 @@ export function CollectionScreen(props: CollectionScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   root: { flex: 1, backgroundColor: colors.bg },
   wash: { position: 'absolute', left: 0, right: 0, top: 0, height: 560 },
   coverShadow: { shadowOpacity: 0.6, shadowRadius: 30, shadowOffset: { width: 0, height: 18 }, elevation: 16, borderRadius: radius.lg },
   titles: { alignItems: 'center', gap: 6, paddingHorizontal: GUTTER * 1.5, marginTop: 22 },
   actions: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', paddingHorizontal: GUTTER, marginTop: 18, marginBottom: 10, gap: 12 },
   actionsLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  shuffle: { width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+  shuffle: { width: 46, height: 46, borderRadius: 23, backgroundColor: colors.fillStrong, alignItems: 'center', justifyContent: 'center' },
   play: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-});
+}));

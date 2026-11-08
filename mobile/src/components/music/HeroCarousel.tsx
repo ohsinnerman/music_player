@@ -7,7 +7,7 @@ import Animated, { type SharedValue, interpolate, useAnimatedScrollHandler, useA
 import type { CatalogItem } from '@/api/types';
 import { art, artistNames } from '@/lib/format';
 import { openItem } from '@/lib/nav';
-import { colors, GUTTER, radius } from '@/theme';
+import { GUTTER, makeStyles, radius } from '@/theme';
 import { Glass } from '../ui/Glass';
 import { PressableScale } from '../ui/PressableScale';
 import { Text } from '../ui/Text';
@@ -20,6 +20,7 @@ function label(item: HeroItem) {
 }
 
 const Card = memo(function Card({ item, index, x, width, gap }: { item: HeroItem; index: number; x: SharedValue<number>; width: number; gap: number }) {
+  const styles = useStyles();
   const step = width + gap;
   const style = useAnimatedStyle(() => {
     const d = (x.value - index * step) / step; // -1 … 0 … 1
@@ -102,7 +103,7 @@ export const HeroCarousel = memo(function HeroCarousel({ items }: { items: Catal
   );
 });
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   glow: { position: 'absolute', top: 24, bottom: -10, borderRadius: radius.xl, opacity: 0.55 },
   card: { borderRadius: radius.xl, overflow: 'hidden', backgroundColor: colors.surface },
   cardBody: { position: 'absolute', left: 18, right: 18, bottom: 18 },
@@ -110,4 +111,4 @@ const styles = StyleSheet.create({
   playPill: { height: 36 },
   playInner: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, height: 36 },
   edge: { ...StyleSheet.absoluteFill, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)' },
-});
+}));
