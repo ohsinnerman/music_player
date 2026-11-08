@@ -1,0 +1,29 @@
+# deps
+node_modules/
+
+# builds
+dist/
+build/
+*.tsbuildinfo
+mobile/.expo/
+mobile/android/
+mobile/ios/
+mobile/web-build/
+*.apk
+*.aab
+
+# env & secrets
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+!debug.keystore
+google-services.json
+credentials.json
+
+# misc
+.DS_Store
+*.log
+coverage/
+.vercel
