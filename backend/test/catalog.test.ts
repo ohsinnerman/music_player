@@ -107,6 +107,15 @@ describe('entities & streaming', () => {
     expect(d.body.data).toMatchObject({ kind: 'preview', url: 'https://cdn.deezer.example/preview/3135556.mp3' });
   });
 
+  it('redirects the stable play URL to a fresh https stream', async () => {
+    const { app } = makeTestApp();
+    const res = await request(app).get('/v1/tracks/deezer:3135556/play');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('https://cdn.deezer.example/preview/3135556.mp3');
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect((await request(app).get('/v1/tracks/bogus/play')).status).toBe(400);
+  });
+
   it('refuses disabled providers', async () => {
     const { app } = makeTestApp({ CATALOG_PROVIDERS: 'audius' });
     expect((await request(app).get('/v1/tracks/deezer:3135556')).status).toBe(404);

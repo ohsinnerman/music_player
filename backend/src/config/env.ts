@@ -61,6 +61,9 @@ const schema = z.object({
 
   /** Allow open sign-ups. Set to false to lock the server to existing accounts. */
   ALLOW_REGISTRATION: bool.default(true),
+
+  /** Dev/demo only: let /play redirect to plain-http streams. Refused in production. */
+  ALLOW_INSECURE_STREAMS: bool.default(false),
 });
 
 export type Env = z.infer<typeof schema> & { JWT_SECRET: string; storeKind: 'mongo' | 'memory' };
@@ -92,6 +95,8 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
       'Production needs persistent storage: set MONGODB_URI, or explicitly STORE=memory if data loss on restart is acceptable.',
     );
   }
+
+  if (isProd && env.ALLOW_INSECURE_STREAMS) throw new Error('ALLOW_INSECURE_STREAMS must not be enabled in production.');
 
   const known = new Set(['audius', 'deezer', 'jamendo']);
   for (const p of env.CATALOG_PROVIDERS) {

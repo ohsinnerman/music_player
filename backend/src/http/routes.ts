@@ -187,6 +187,23 @@ export function createRoutes({ env, store, tokens, catalog, lyrics }: RouteDeps)
     }),
   );
 
+  /**
+   * Stable playback URL: resolves a fresh stream and 302-redirects to it.
+   * The app hands this URL straight to the native player queue, so tracks
+   * never play from an expired signed URL. Only provider-resolved https URLs
+   * are ever redirected to (the id is validated, nothing comes from the client).
+   */
+  r.get(
+    '/tracks/:id/play',
+    ah(async (req, res) => {
+      const info = await catalog.stream(parse(id, req.params.id));
+      const target = new URL(info.url);
+      if (target.protocol !== 'https:' && !(env.ALLOW_INSECURE_STREAMS && target.protocol === 'http:')) throw notFound('Stream not available');
+      res.setHeader('Cache-Control', 'no-store');
+      res.redirect(302, target.href);
+    }),
+  );
+
   r.get(
     '/lyrics',
     cachePublic(3600),
