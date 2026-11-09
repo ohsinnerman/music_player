@@ -34,7 +34,7 @@ Focus: speed, stability, sound quality, receivers, library.
 
 ## 1.0.0-alpha — 2026-11-09
 
-First public alpha (`v1.0.0-alpha`, APK `aura-1.0.0-9812ede.apk`).
+First public alpha: commit `9812ede`, APK `aura-1.0.0-9812ede.apk` (attached to the `latest` release).
 
 - Streaming from Audius / Deezer previews / Jamendo, search, radio, library, playlists, accounts with sync
 - Full-screen player with living artwork, synced lyrics (LRCLIB), queue, sleep timer, lock-screen controls

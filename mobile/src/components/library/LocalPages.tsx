@@ -12,10 +12,6 @@ import { openAlbum, openArtist } from '@/lib/nav';
 import { albumCard, loadAlbumInfo, loadArtistInfo, useLibraryInfo, useLocalLibrary } from '@/local/library';
 import { GUTTER, makeStyles, radius, useColors } from '@/theme';
 
-const hours = (ms: number) => {
-  const min = Math.round(ms / 60000);
-  return min >= 60 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${min} min`;
-};
 
 function About({ summary, source, facts, sources, loading }: { summary?: string; source?: { name: string; url: string }; facts: string[]; sources: string[]; loading: boolean }) {
   const colors = useColors();
@@ -80,11 +76,9 @@ export function LocalAlbumPage({ id }: { id: string }) {
   const year = info?.year ?? album.year;
   const artwork = album.artwork.large || album.artwork.medium ? album.artwork : info?.cover ? { small: info.cover, medium: info.cover, large: info.cover } : album.artwork;
   const facts = [
-    year,
     info?.label,
     info?.genres.length ? info.genres.join(', ') : album.genre,
-    `${album.tracks.length} ${album.tracks.length === 1 ? 'song' : 'songs'}${info?.trackCount && info.trackCount > album.tracks.length ? ` of ${info.trackCount}` : ''}`,
-    hours(album.durationMs),
+    info?.trackCount && info.trackCount > album.tracks.length ? `${album.tracks.length} of ${info.trackCount} songs on this phone` : undefined,
   ].filter((x): x is string => !!x);
 
   return (
@@ -145,8 +139,7 @@ export function LocalArtistPage({ id }: { id: string }) {
   }
 
   const photo = info?.image ?? artist.artwork.large ?? artist.artwork.medium;
-  const total = artist.tracks.reduce((s, t) => s + (t.durationMs || 0), 0);
-  const facts = [info?.fans ? `${Intl.NumberFormat(undefined, { notation: 'compact' }).format(info.fans)} fans on Deezer` : undefined, `${artist.tracks.length} songs on this phone`, hours(total)].filter((x): x is string => !!x);
+  const facts = [info?.fans ? `${Intl.NumberFormat(undefined, { notation: 'compact' }).format(info.fans)} fans on Deezer` : undefined, info?.genres.length ? info.genres.join(', ') : undefined].filter((x): x is string => !!x);
 
   return (
     <CollectionScreen

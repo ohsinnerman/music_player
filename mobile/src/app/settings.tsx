@@ -312,8 +312,8 @@ export default function Settings() {
           </Group>
         ) : null}
 
-        <Group title="Play on Wi-Fi speakers" footer="Sends songs to a DLNA receiver or speaker (Yamaha MusicCast, Denon/Marantz HEOS, Sonos, smart TVs…) as the original file — no transcoding, and Android’s audio mixer is bypassed.">
-          <Row label="Choose a speaker or receiver" onPress={openCastSheet} />
+        <Group title="Play on TVs & speakers" footer="Google Cast (Chromecast, Google TV, Nest, Cast TVs) and DLNA receivers / speakers (Yamaha MusicCast, Denon / Marantz HEOS, Sonos, smart TVs…) get the original file — no transcoding, and Android’s audio mixer is bypassed. MusicCast receivers also get a remote.">
+          <Row label="Choose a TV, speaker or receiver" onPress={openCastSheet} />
         </Group>
 
         <Group title="Songs on this phone" footer="When a song’s tags and file name aren’t enough, Aura can send a 20-second clip to your server, which asks an AI to recognise it and fetch the lyrics. Clips aren’t stored.">

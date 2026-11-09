@@ -179,7 +179,7 @@ export default function SoundScreen() {
             hint={
               sdk && sdk < 34
                 ? 'Needs Android 14 or newer.'
-                : `Your DAC gets the song at its own rate with Android’s mixer bypassed. EQ and ReplayGain pause, and the phone’s volume may be fixed at full — use the DAC’s volume.${usb ? '' : ' Plug in a USB DAC to use it.'}`
+                : `Your DAC gets the song at its own rate with Android’s mixer bypassed. EQ and ReplayGain pause, and the phone’s volume may be fixed at full — use the DAC’s volume. Takes effect from the next song.${usb ? '' : ' Plug in a USB DAC to use it.'}`
             }
             value={s.bitPerfect}
             onChange={() => s.set({ bitPerfect: !s.bitPerfect })}
