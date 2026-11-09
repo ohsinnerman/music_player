@@ -126,7 +126,8 @@ jobs:
         id: apk
         run: |
           SHORT=$(git rev-parse --short HEAD)
-          OUT="aura-1.0.0-${SHORT}.apk"
+          LABEL=$(node -p "require('./version.json').label")
+          OUT="aura-${LABEL}-${SHORT}.apk"
           cp android/app/build/outputs/apk/release/app-release.apk "../$OUT"
           echo "file=$OUT" >> "$GITHUB_OUTPUT"
           ls -lh "../$OUT"
@@ -149,4 +150,21 @@ jobs:
             Automated build of `${{ github.sha }}`.
             Download **${{ steps.apk.outputs.file }}** below and open it on your phone to install.
             Default server baked into this build: `${{ env.EXPO_PUBLIC_API_URL || 'none — set it in the app under Settings → Server' }}`
+          files: ${{ steps.apk.outputs.file }}
+
+      - name: Version label
+        id: ver
+        run: echo "label=$(node -p "require('./version.json').label")" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to the versioned pre-release (v<label>)
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.label }}
+          name: Aura ${{ steps.ver.outputs.label }}
+          prerelease: true
+          make_latest: false
+          body: |
+            Rolling build of **${{ steps.ver.outputs.label }}** — newest APK is the one with the latest commit hash.
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md).
           files: ${{ steps.apk.outputs.file }}

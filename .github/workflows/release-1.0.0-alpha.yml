@@ -1,0 +1,32 @@
+# One-off: publish the 1.0.0-alpha release (tag v1.0.0-alpha on 9812ede) with
+# the APK that the "latest" build produced for that commit. Idempotent.
+name: Release 1.0.0-alpha
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/release-1.0.0-alpha.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SHA: 9812ede
+    steps:
+      - name: Create release if missing
+        run: |
+          set -e
+          if gh release view v1.0.0-alpha -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "v1.0.0-alpha already exists"; exit 0
+          fi
+          FULL=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA" --jq .sha)
+          gh release download latest -R "$GITHUB_REPOSITORY" -p "aura-1.0.0-$SHA.apk"
+          gh release create v1.0.0-alpha "aura-1.0.0-$SHA.apk" -R "$GITHUB_REPOSITORY" \
+            --target "$FULL" --prerelease --latest=false \
+            --title "Aura 1.0.0-alpha" \
+            --notes "First public alpha. See [CHANGELOG.md](https://github.com/$GITHUB_REPOSITORY/blob/main/CHANGELOG.md#100-alpha--2026-11-09). Install **aura-1.0.0-$SHA.apk** on Android 8+."

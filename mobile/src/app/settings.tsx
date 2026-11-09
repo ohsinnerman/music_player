@@ -267,7 +267,7 @@ export default function Settings() {
   const { status, user, signOut } = useAuth();
   const s = useSettings();
   const clearHistory = useLocalLibrary((x) => x.clearHistory);
-  const version = Constants.expoConfig?.version ?? '1.0.0';
+  const version = (Constants.expoConfig?.extra as { versionLabel?: string } | undefined)?.versionLabel ?? Constants.expoConfig?.version ?? '1.1.0';
 
   return (
     <View style={styles.root}>

@@ -15,12 +15,15 @@ const allowCleartext = process.env.AURA_ALLOW_CLEARTEXT === 'true';
 // add armeabi-v7a for very old devices or x86_64 for emulators, e.g. AURA_ABIS=arm64-v8a,armeabi-v7a
 const abis = (process.env.AURA_ABIS ?? 'arm64-v8a').split(',').map((s: string) => s.trim()).filter(Boolean);
 
+// Single source of truth for the app version (CI names the APK from it too).
+const release = require('./version.json') as { version: string; label: string; build: number };
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Aura',
   slug: 'aura-music',
   scheme: 'aura',
-  version: '1.0.0',
+  version: release.version,
   orientation: 'portrait',
   userInterfaceStyle: 'dark',
   backgroundColor: '#08080B',
@@ -28,11 +31,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     bundleIdentifier: 'com.ohsinnerman.aura',
     supportsTablet: false,
+    buildNumber: String(release.build),
     infoPlist: { UIBackgroundModes: ['audio'] },
   },
   android: {
     package: 'com.ohsinnerman.aura',
-    versionCode: 1,
+    versionCode: release.build,
     adaptiveIcon: {
       foregroundImage: './assets/android-icon-foreground.png',
       backgroundImage: './assets/android-icon-background.png',
@@ -90,9 +94,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     './plugins/withReleaseSigning',
+    ['./plugins/withVersionLabel', { label: release.label }],
   ],
   experiments: { typedRoutes: false },
   extra: {
+    versionLabel: release.label,
     apiUrl,
     allowCleartext,
   },
