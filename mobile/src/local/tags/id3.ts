@@ -1,5 +1,5 @@
 import { ascii, clean, latin1, syncsafe, u24be, u32be, utf16, utf8 } from './bytes';
-import { type Picture, type SyncedLine, type TagResult, firstNumber, genreName, yearOf } from './types';
+import { type Picture, type SyncedLine, type TagResult, firstNumber, genreName, replayGainTag, yearOf } from './types';
 
 /** Total byte length of the ID3v2 tag whose 10-byte header is given (incl. footer). */
 export function id3v2Length(head: Uint8Array): number {
@@ -190,6 +190,7 @@ export function parseId3v2(buf: Uint8Array): Partial<TagResult> {
       const d = desc.trim().toUpperCase();
       if (value && (d === 'LYRICS' || d === 'UNSYNCEDLYRICS' || d === 'SYNCEDLYRICS' || d === 'USLT')) out.lyrics ??= value;
       else if (value && d === 'ALBUMARTIST') out.albumArtist ??= value;
+      else if (value) replayGainTag(out, d, value);
     }
   }
 

@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { playUrl } from '@/api/client';
 import type { Track } from '@/api/types';
 import { persistStorage } from '@/lib/storage';
-import { castNative } from '../../modules/aura-cast';
+import { castNative, type GcDevice, type GcStatusEvent, googleCastSupported } from '../../modules/aura-cast';
 import { AVT, MEDIA_RENDERER, RC, type Renderer, describeFault, didl, formatTime, mimeFor, parseDescription, parseSoapResponse, parseTime, soapEnvelope, soapHeaders } from './upnp';
 
 /**
@@ -16,6 +16,8 @@ export type CastStatus = 'idle' | 'connecting' | 'buffering' | 'playing' | 'paus
 
 interface CastState {
   devices: Renderer[];
+  /** Google Cast devices seen right now (live while the picker is open). */
+  tvs: Renderer[];
   scanning: boolean;
   scanError?: string;
   active: Renderer | null;
@@ -28,12 +30,14 @@ interface CastState {
 
 export const useCast = create<CastState>()(
   persist(
-    (): CastState => ({ devices: [], scanning: false, active: null, status: 'idle', volume: null }),
-    { name: 'aura.cast', storage: persistStorage, version: 1, partialize: (s) => ({ lastUdn: s.lastUdn, devices: s.devices }) },
+    (): CastState => ({ devices: [], tvs: [], scanning: false, active: null, status: 'idle', volume: null }),
+    { name: 'aura.cast', storage: persistStorage, version: 1, partialize: (s) => ({ lastUdn: s.lastUdn, devices: s.devices.filter((d) => !isG(d)) }) },
   ),
 );
 
 export const castAvailable = !!castNative;
+export const gcastAvailable = googleCastSupported;
+const isG = (d: Renderer | null | undefined) => d?.kind === 'gcast';
 
 export interface CastHooks {
   onProgress(position: number, duration: number, playing: boolean, buffering: boolean): void;
@@ -93,6 +97,86 @@ export function scan(): Promise<void> {
   return scanning;
 }
 
+/* ───────────────────────── Google Cast ───────────────────────── */
+
+const toRenderer = (d: GcDevice): Renderer => ({
+  kind: 'gcast',
+  gcKind: d.kind,
+  gcId: d.id,
+  udn: `gcast:${d.id}`,
+  name: d.name,
+  model: d.model ?? d.description ?? undefined,
+  manufacturer: 'Google Cast',
+  location: '',
+  avTransport: '',
+  avServiceType: '',
+});
+
+let gcReady: Promise<boolean> | null = null;
+let gcWaiter: { resolve: () => void; reject: (e: Error) => void } | null = null;
+let gcEnding = false;
+let gcLast: { state: string; sawPlaying: boolean; duration: number } = { state: '', sawPlaying: false, duration: 0 };
+
+/** Initialise the Cast framework once and listen to its events. */
+function gcInit(): Promise<boolean> {
+  if (!googleCastSupported || !castNative?.gcInit) return Promise.resolve(false);
+  gcReady ??= castNative
+    .gcInit()
+    .then(() => {
+      castNative!.addListener?.('onCastDevices', (e) => useCast.setState({ tvs: e.devices.map(toRenderer).sort((a, b) => a.name.localeCompare(b.name)) }));
+      castNative!.addListener?.('onCastSession', (e) => {
+        if (e.state === 'connected') gcWaiter?.resolve();
+        else if (e.state === 'failed') gcWaiter?.reject(new Error(e.error ?? 'Couldn’t connect'));
+        if (e.state === 'connected' || e.state === 'failed') gcWaiter = null;
+        const active = useCast.getState().active;
+        if (e.state === 'ended' && isG(active) && !gcEnding) {
+          void disconnect().then(() => hooks?.onLost(e.error ?? `Disconnected from ${active!.name}`));
+        }
+      });
+      castNative!.addListener?.('onCastStatus', onGcStatus);
+      return true;
+    })
+    .catch(() => false);
+  return gcReady;
+}
+
+function onGcStatus(e: GcStatusEvent) {
+  if (!isG(useCast.getState().active) || busy) return;
+  const playing = e.state === 'playing';
+  const buffering = e.state === 'buffering';
+  if (playing) gcLast.sawPlaying = true;
+  const duration = e.duration > 0 ? e.duration : gcLast.duration;
+  if (e.volume >= 0) useCast.setState({ volume: Math.round(e.volume * 100) });
+  useCast.setState({ status: playing ? 'playing' : buffering ? 'buffering' : e.state === 'paused' ? 'paused' : e.state === 'idle' ? 'stopped' : useCast.getState().status });
+  if (playing || buffering || e.state === 'paused') hooks?.onProgress(e.position, duration, playing, buffering);
+  const wasActive = gcLast.state === 'playing' || gcLast.state === 'buffering';
+  gcLast = { ...gcLast, state: e.state, duration };
+  if (e.state === 'idle' && wasActive && gcLast.sawPlaying && (e.idleReason === 'finished' || e.idleReason === 'error')) {
+    gcLast.sawPlaying = false;
+    if (e.idleReason === 'error') useCast.setState({ error: `${useCast.getState().active?.name ?? 'The device'} couldn’t play this file` });
+    hooks?.onEnded();
+  }
+}
+
+/** Start / stop looking for Google Cast devices (call while the picker is open). */
+export async function watchGoogleCast(on: boolean) {
+  if (!(await gcInit())) return;
+  if (on) {
+    castNative!.gcStartDiscovery?.();
+    useCast.setState({ tvs: (castNative!.gcDevices?.() ?? []).map(toRenderer) });
+  } else if (!isG(useCast.getState().active)) castNative!.gcStopDiscovery?.();
+}
+
+async function gcConnect(dev: Renderer) {
+  if (!(await gcInit()) || !dev.gcId) throw new Error('Google Cast isn’t available on this phone');
+  const connected = new Promise<void>((resolve, reject) => {
+    gcWaiter = { resolve, reject };
+    setTimeout(() => reject(new Error(`${dev.name} didn’t answer`)), 20000);
+  });
+  await castNative!.gcConnect!(dev.gcId);
+  await connected;
+}
+
 /* ───────────────────────── Session ───────────────────────── */
 
 let poll: ReturnType<typeof setInterval> | null = null;
@@ -124,11 +208,23 @@ export async function connect(dev: Renderer) {
   useCast.setState({ active: dev, status: 'connecting', error: undefined, lastUdn: dev.udn });
   try {
     await n.startServer();
-    n.startService(`Playing on ${dev.name}`, 'Aura is sending the original file over Wi-Fi');
+    n.startService(`Playing on ${dev.name}`, isG(dev) ? 'Aura is streaming the original file to your Cast device' : 'Aura is sending the original file over Wi-Fi');
+    if (isG(dev)) {
+      gcEnding = false;
+      gcLast = { state: '', sawPlaying: false, duration: 0 };
+      await gcConnect(dev);
+    }
   } catch (e) {
+    try {
+      n.stopService();
+      n.stopServer();
+    } catch {
+      /* ignore */
+    }
     useCast.setState({ active: null, status: 'error', error: e instanceof Error ? e.message : 'Couldn’t start' });
     throw e;
   }
+  if (isG(dev)) return;
   void refreshVolume();
   startPolling();
 }
@@ -139,7 +235,12 @@ export async function disconnect(): Promise<void> {
   loadSeq++;
   useCast.setState({ active: null, status: 'idle', volume: null });
   if (!castNative) return;
-  if (dev) await soap(dev, 'av', 'Stop', { InstanceID: 0 }, 3000).catch(() => undefined);
+  if (isG(dev)) {
+    gcEnding = true;
+    castNative.gcStop?.();
+    castNative.gcDisconnect?.();
+    castNative.gcStopDiscovery?.();
+  } else if (dev) await soap(dev, 'av', 'Stop', { InstanceID: 0 }, 3000).catch(() => undefined);
   try {
     castNative.stopService();
     castNative.stopServer();
@@ -161,6 +262,23 @@ export async function load(t: Track, startAt = 0, autoplay = true): Promise<bool
     native().clearServed();
     const { url, art } = serveTrack(t);
     const { mime } = mediaFor(t);
+    if (isG(dev)) {
+      gcLast = { state: 'buffering', sawPlaying: false, duration: t.durationMs / 1000 };
+      await native().gcLoad!({
+        url,
+        mime,
+        title: t.title,
+        artist: t.artists.map((a) => a.name).join(', '),
+        album: t.album?.title,
+        art,
+        duration: t.durationMs ? t.durationMs / 1000 : undefined,
+        startAt,
+        autoplay,
+      });
+      if (seq !== loadSeq) return false;
+      useCast.setState({ status: autoplay ? 'buffering' : 'paused' });
+      return true;
+    }
     const meta = didl({
       id: t.id,
       title: t.title,
@@ -219,13 +337,23 @@ const withDevice = async (fn: (d: Renderer) => Promise<unknown>) => {
   }
 };
 
-export const play = () => withDevice((d) => soap(d, 'av', 'Play', { InstanceID: 0, Speed: '1' }).then(() => useCast.setState({ status: 'playing' })));
-export const pause = () => withDevice((d) => soap(d, 'av', 'Pause', { InstanceID: 0 }).then(() => useCast.setState({ status: 'paused' })));
-export const seek = (sec: number) => withDevice((d) => soap(d, 'av', 'Seek', { InstanceID: 0, Unit: 'REL_TIME', Target: formatTime(sec) }));
+export const play = () =>
+  withDevice(async (d) => {
+    if (isG(d)) native().gcPlay?.();
+    else await soap(d, 'av', 'Play', { InstanceID: 0, Speed: '1' });
+    useCast.setState({ status: 'playing' });
+  });
+export const pause = () =>
+  withDevice(async (d) => {
+    if (isG(d)) native().gcPause?.();
+    else await soap(d, 'av', 'Pause', { InstanceID: 0 });
+    useCast.setState({ status: 'paused' });
+  });
+export const seek = (sec: number) => withDevice(async (d) => (isG(d) ? native().gcSeek?.(sec) : soap(d, 'av', 'Seek', { InstanceID: 0, Unit: 'REL_TIME', Target: formatTime(sec) })));
 
 export async function refreshVolume() {
   const dev = useCast.getState().active;
-  if (!dev?.renderingControl) return;
+  if (!dev?.renderingControl || isG(dev)) return;
   try {
     const r = await soap(dev, 'rc', 'GetVolume', { InstanceID: 0, Channel: 'Master' }, 3000);
     const v = Number(r.CurrentVolume);
@@ -242,7 +370,7 @@ export function setVolume(v: number) {
   useCast.setState({ volume: vol });
   if (volTimer) clearTimeout(volTimer);
   volTimer = setTimeout(() => {
-    void withDevice((d) => soap(d, 'rc', 'SetVolume', { InstanceID: 0, Channel: 'Master', DesiredVolume: vol }));
+    void withDevice(async (d) => (isG(d) ? native().gcSetVolume?.(vol / 100) : soap(d, 'rc', 'SetVolume', { InstanceID: 0, Channel: 'Master', DesiredVolume: vol })));
   }, 120);
 }
 
@@ -259,7 +387,7 @@ function stopPolling() {
 
 async function tick() {
   const dev = useCast.getState().active;
-  if (!dev || busy) return;
+  if (!dev || busy || isG(dev)) return;
   try {
     const [ti, pi] = await Promise.all([soap(dev, 'av', 'GetTransportInfo', { InstanceID: 0 }, 2500), soap(dev, 'av', 'GetPositionInfo', { InstanceID: 0 }, 2500)]);
     misses = 0;

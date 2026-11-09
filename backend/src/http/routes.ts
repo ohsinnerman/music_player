@@ -9,6 +9,7 @@ import { burnPasswordCheck, hashPassword, passwordProblem, verifyPassword } from
 import type { TokenService } from '../security/tokens.js';
 import type { CatalogService } from '../services/catalog.js';
 import { MIME_EXT, type IdentifyService } from '../services/identify.js';
+import type { AutoEqService } from '../services/autoeq.js';
 import type { LyricsService } from '../services/lyrics.js';
 import type { Store, UserPlaylistRecord, UserRecord } from '../store/types.js';
 import { ah, authMiddleware, limiter, parse } from './middleware.js';
@@ -47,9 +48,10 @@ export interface RouteDeps {
   catalog: CatalogService;
   lyrics: LyricsService;
   identify: IdentifyService;
+  autoeq: AutoEqService;
 }
 
-export function createRoutes({ env, store, tokens, catalog, lyrics, identify }: RouteDeps): Router {
+export function createRoutes({ env, store, tokens, catalog, lyrics, identify, autoeq }: RouteDeps): Router {
   const r = Router();
   const { requireAuth } = authMiddleware(tokens, store);
 
@@ -237,6 +239,24 @@ export function createRoutes({ env, store, tokens, catalog, lyrics, identify }: 
       } else {
         res.json({ data: await lyrics.lookup({ title: q.title, artist: q.artist, album: q.album, durationSec: q.duration }) });
       }
+    }),
+  );
+
+  // ───────────── Headphone EQ presets (AutoEq) ─────────────
+  r.get(
+    '/eq/search',
+    cachePublic(3600),
+    ah(async (req, res) => {
+      const q = parse(z.object({ q: z.string().trim().min(2).max(80) }), req.query);
+      res.json({ data: await autoeq.search(q.q) });
+    }),
+  );
+  r.get(
+    '/eq/profile',
+    cachePublic(86400),
+    ah(async (req, res) => {
+      const q = parse(z.object({ path: z.string().trim().min(3).max(300).regex(/^[^\\]+$/).refine((p) => !p.split('/').some((s) => s === '..' || s === '.' || !s), 'Bad path') }), req.query);
+      res.json({ data: await autoeq.profile(q.path) });
     }),
   );
 

@@ -6,7 +6,8 @@ Expo SDK 58 · React Native 0.88 (New Architecture, Hermes) · Expo Router (file
 `src/app`) · Reanimated 4 + react-native-worklets · Gesture Handler 3 (hook API) · Skia 2 ·
 expo-audio (ExoPlayer) · expo-file-system (SAF file/folder access) · expo-blur · expo-image · FlashList 2 · TanStack Query 5 · Zustand 5 ·
 SecureStore · Plus Jakarta Sans + Instrument Serif · lucide icons. Three local native modules (Kotlin, autolinked from `modules/`): `aura-audio-route` (audio output info —
-see [AUDIO_QUALITY.md](AUDIO_QUALITY.md)), `aura-liquid-glass` (GPU Liquid Glass lens — see
+see [AUDIO_QUALITY.md](AUDIO_QUALITY.md) — and the player's output stage: float decoding, EQ, ReplayGain,
+downmix, bit-perfect USB — see [SOUND.md](SOUND.md)), `aura-liquid-glass` (GPU Liquid Glass lens — see
 [DESIGN.md](DESIGN.md#signature-components)) and `aura-cast` (DLNA discovery, control and media server —
 see [DLNA.md](DLNA.md)).
 
@@ -37,6 +38,7 @@ Stack and its ref is shared through `ChromeProvider`.
 | `player/store.ts` | queue snapshot in AsyncStorage | queue, index, context, repeat, shuffle, playing/buffering; `clock` shared values |
 | `library/store.ts` | AsyncStorage | guest likes, playlists, local history |
 | TanStack Query | memory | all server data (home, search, albums, `me/*`) |
+| `audio/sound.ts` | AsyncStorage | EQ bands / preset / headphone profile, ReplayGain, downmix, bit-perfect; pushed to the native output stage on change |
 | `lib/diagnostics.ts` | AsyncStorage (last 80 entries) | errors and playback failures, shared from Settings → Diagnostics |
 
 All persisted stores write through `lib/storage.ts`, which coalesces writes: the latest state is kept

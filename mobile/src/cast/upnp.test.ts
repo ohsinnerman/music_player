@@ -25,6 +25,12 @@ const YAMAHA = `<?xml version="1.0" encoding="utf-8"?>
       <service><serviceType>urn:schemas-upnp-org:service:ConnectionManager:1</serviceType><serviceId>urn:upnp-org:serviceId:ConnectionManager</serviceId>
         <SCPDURL>/ConnectionManager/desc.xml</SCPDURL><controlURL>/ConnectionManager/ctrl</controlURL><eventSubURL>/ConnectionManager/event</eventSubURL></service>
     </serviceList>
+    <yamaha:X_device>
+      <yamaha:X_URLBase>http://192.168.1.23:80/</yamaha:X_URLBase>
+      <yamaha:X_serviceList><yamaha:X_service><yamaha:X_specType>urn:schemas-yamaha-com:service:X_YamahaRemoteControl:1</yamaha:X_specType>
+        <yamaha:X_controlURL>/YamahaRemoteControl/ctrl</yamaha:X_controlURL><yamaha:X_unitDescURL>/YamahaRemoteControl/desc.xml</yamaha:X_unitDescURL></yamaha:X_service></yamaha:X_serviceList>
+      <yamaha:X_yxcControlURL>/YamahaExtendedControl/v1/</yamaha:X_yxcControlURL>
+    </yamaha:X_device>
   </device>
 </root>`;
 
@@ -52,7 +58,9 @@ describe('device descriptions', () => {
       renderingControl: 'http://192.168.1.23:49154/RenderingControl/ctrl',
       iconUrl: 'http://192.168.1.23:49154/Icons/120x120.png',
       avServiceType: AVT,
+      yxc: 'http://192.168.1.23:80/YamahaExtendedControl/v1/',
     });
+    expect(parseDescription(NESTED, 'http://192.168.1.50:9197/dmr')!.yxc).toBeUndefined();
   });
 
   it('finds an embedded renderer and resolves relative URLs against URLBase', () => {

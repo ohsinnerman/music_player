@@ -1,4 +1,12 @@
-# Play on Wi-Fi speakers & receivers (DLNA)
+# Play on TVs, speakers & receivers (DLNA, Google Cast, MusicCast)
+
+The **Play on** picker (full player → cast button, or Settings → Play on Wi-Fi speakers) lists, like
+Spotify Connect: the device that's playing (with what's on, its volume and controls), **This phone**,
+**Google Cast** devices (Chromecast, Google TV, Nest speakers, Cast-enabled TVs and receivers, speaker
+groups) and **DLNA** speakers & receivers. Each shows an icon for what it is (TV, speaker, receiver,
+group).
+
+## DLNA
 
 Send songs from Aura to a network receiver or speaker — e.g. a **Yamaha RX-V485** — as the **original
 file**. The receiver downloads it from the phone over Wi-Fi and decodes it itself, so Android's decoder,
@@ -31,6 +39,32 @@ Aura (phone)                                         Receiver (DLNA MediaRendere
   Wi-Fi lock, so playback doesn't stop when the phone sleeps.
 - The Audio quality sheet switches to the DLNA path: *File → Wi-Fi (DLNA, original file) → decoded by
   the receiver → its DAC*, with a "Bit-perfect" verdict for lossless files.
+
+## Google Cast
+
+- Uses Google's **Default Media Receiver** (no custom receiver app needed). Discovery runs only while
+  the picker is open (MediaRouter active scan).
+- The Cast device fetches the **original file** from the phone's media server (the same one DLNA
+  uses) — FLAC stays FLAC. Cast devices play FLAC up to 24-bit / 96 kHz, WAV, MP3, AAC, Opus, Vorbis.
+  Catalog songs are relayed by the phone.
+- Play / pause / seek / next / volume work from Aura; when a song finishes the next one is loaded.
+- Needs Google Play services. Code: `modules/aura-cast/…/GoogleCast.kt` (Cast framework 22.x),
+  `src/cast/session.ts` (`kind: 'gcast'`).
+
+## Yamaha MusicCast remote
+
+MusicCast receivers (RX-V485 and friends) also expose the *Yamaha Extended Control* API. Aura finds
+it in the receiver's DLNA description (`yamaha:X_yxcControlURL`) and shows a **sliders** button next to
+the receiver (and a **Receiver** button while playing on it):
+
+- **Power** (and standby), **volume in dB** with mute, **zones** (Main / Zone 2) when present
+- **Input** (HDMI, AV, Server, Net Radio, Bluetooth, AirPlay… with the names you gave them)
+- **Pure Direct** — the shortest analogue path, recommended for lossless; **sound programs** (Straight,
+  2ch Stereo, DSP halls…), **Compressed Music Enhancer**, **sleep** timer
+
+All calls are plain HTTP GETs on the LAN (`system/getFeatures`, `getNameText`, `<zone>/getStatus`,
+`setPower`, `setVolume`, `setInput`, `setPureDirect`, `setSoundProgram`…). Code: `src/cast/yxc.ts`
+(parsing, unit-tested), `src/cast/musiccast.ts`, `src/components/cast/ReceiverSheet.tsx`.
 
 ## Receiver setup (Yamaha RX-V485)
 

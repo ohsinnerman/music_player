@@ -42,15 +42,17 @@ measured.
 ## 2 · How it's playing (`signalPath`)
 
 ```
-File ──► Decode ──► Android mixer ──► Output
-FLAC     24 → 16-bit   96 → 48 kHz      Wired / USB DAC / Bluetooth / speaker
-24/96    PCM          + volume, effects
+File ──► Decode ─────────► Sound settings ──► Android mixer ──► Output
+FLAC     24-bit → 32-bit    downmix, Replay-    96 → 48 kHz      Wired / USB DAC / Bluetooth / speaker
+24/96    float (Aura)       Gain, EQ (if on)    + volume         (bypassed: bit-perfect USB)
 ```
 
 Each step is marked ✓ clean, ⊖ small compromise, ⚠ lossy, or ⓘ info:
 
-- **Decode** — the player (expo-audio / Media3 ExoPlayer, default settings) decodes to 16-bit PCM.
-  24-bit files are therefore reduced to 16-bit; that still covers 96 dB of dynamic range.
+- **Decode** — Aura's output stage ([SOUND.md](SOUND.md)) decodes to 32-bit float, which keeps every
+  bit of 24-bit files. (Builds without it, or other platforms, decode to 16-bit — the sheet says which.)
+- **Sound settings** — only shown when something is applied: surround downmix, ReplayGain, EQ. These
+  are intentional changes, marked ⓘ.
 - **Android mixer** — Android mixes all audio at its native rate (`PROPERTY_OUTPUT_SAMPLE_RATE`,
   48 kHz on almost every phone), so 44.1 / 88.2 / 96 / 192 kHz songs are resampled. Volume and sound
   effects are applied here, so phone playback is never bit-perfect. With a **USB DAC** the sheet
@@ -89,8 +91,9 @@ get a **Bit-perfect** verdict — the one case where Aura says so.
 
 ## What Aura doesn't claim
 
-- No "bit-perfect" label for playback on the phone: Android's shared mixer always applies volume
-  (DLNA casting is the exception — the phone doesn't touch the audio).
+- No "bit-perfect" label for playback on the phone unless it really is: a USB DAC in Android 14's
+  bit-perfect mode (see [SOUND.md](SOUND.md)) or DLNA casting. Otherwise Android's shared mixer applies
+  volume.
 - The Bluetooth codec in use isn't available to apps, so it's described, not named.
 - No spectral analysis ("is this FLAC really an upscaled MP3?") — badges describe the container.
 

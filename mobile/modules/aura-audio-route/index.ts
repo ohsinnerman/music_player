@@ -37,8 +37,26 @@ export interface OutputInfo {
   bitPerfectCapable?: boolean;
 }
 
+/** What the player's output stage (AuraDsp) is doing for the current song. */
+export interface DspState {
+  /** The patched player is using Aura's output stage. */
+  hooked?: boolean;
+  active?: boolean;
+  inputEncoding?: string;
+  inputBits?: number;
+  inputChannels?: number;
+  outputChannels?: number;
+  sampleRate?: number;
+  downmixed?: boolean;
+  replayGain?: { mode: number; source: 'off' | 'none' | 'track' | 'album'; gainDb: number; trackGain?: number | null; albumGain?: number | null };
+  eqFilters?: number;
+  bitPerfect?: { state: 'off' | 'no-usb' | 'bit-perfect' | 'native-rate' | 'unsupported-rate'; sampleRate?: number; device?: string | null; encoding?: string | null };
+}
+
 interface NativeModule {
   getOutputInfo(): OutputInfo;
+  setSoundConfig?(json: string): void;
+  getDspState?(): DspState;
   displayNames(uris: string[]): Promise<(string | null)[]>;
   addListener(event: 'onRouteChange', fn: (info: OutputInfo) => void): EventSubscription;
 }
@@ -83,4 +101,21 @@ export async function displayNames(uris: string[]): Promise<string[]> {
     native = [];
   }
   return uris.map((u, i) => native[i] || nameFromUri(u));
+}
+
+/** Push sound settings (ReplayGain, EQ, downmix, bit-perfect) to the player. No-op where unsupported. */
+export function setSoundConfig(cfg: object) {
+  try {
+    native?.setSoundConfig?.(JSON.stringify(cfg));
+  } catch {
+    /* older build */
+  }
+}
+
+export function getDspState(): DspState {
+  try {
+    return native?.getDspState?.() ?? {};
+  } catch {
+    return {};
+  }
 }

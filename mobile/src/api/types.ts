@@ -60,6 +60,8 @@ export interface LocalFileInfo {
   /** Encoder / writer ("LAME3.100", "reference libFLAC 1.4.3"). */
   encoder?: string;
   vbr?: boolean;
+  /** ReplayGain tags in the file (dB / linear peak). */
+  replayGain?: { trackGain?: number; trackPeak?: number; albumGain?: number; albumPeak?: number };
   /** Raw tags as read from the file (before any identification). */
   tags: { title?: string; artist?: string; album?: string; year?: string; genre?: string; trackNo?: number };
   addedAt: string;

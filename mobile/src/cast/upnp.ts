@@ -8,6 +8,12 @@ export const RC = 'urn:schemas-upnp-org:service:RenderingControl:1';
 export const MEDIA_RENDERER = 'urn:schemas-upnp-org:device:MediaRenderer:1';
 
 export interface Renderer {
+  /** 'dlna' (default) or 'gcast' (Google Cast — then most UPnP fields are empty). */
+  kind?: 'dlna' | 'gcast';
+  /** Google Cast: what the device is, for the icon. */
+  gcKind?: 'tv' | 'speaker' | 'group';
+  /** Google Cast route id. */
+  gcId?: string;
   udn: string;
   name: string;
   manufacturer?: string;
@@ -19,6 +25,8 @@ export interface Renderer {
   renderingControl?: string;
   avServiceType: string;
   rcServiceType?: string;
+  /** Yamaha MusicCast: base URL of the Yamaha Extended Control API (power, input, Pure Direct…). */
+  yxc?: string;
 }
 
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
@@ -96,10 +104,14 @@ export function parseDescription(xml: string, location: string): Renderer | null
     .filter((ic) => ic.url && /png|jpe?g/.test(ic.mime))
     .sort((a, b) => b.w - a.w);
   const pick = (n: string) => lastTag(own, n) ?? lastTag(head, n);
+  const manufacturer = pick('manufacturer');
+  const yxcPath = tag(xml, 'X_yxcControlURL');
+  const yxcBase = tag(xml, 'X_URLBase') || location;
+  const yxc = yxcPath ? resolveUrl(yxcPath, yxcBase) : /yamaha/i.test(manufacturer ?? '') ? resolveUrl('/YamahaExtendedControl/v1/', location.replace(/^(https?:\/\/[^/:]+)(:\d+)?/i, '$1')) : undefined;
   return {
     udn: pick('UDN') ?? location,
     name: pick('friendlyName') ?? pick('modelName') ?? 'Speaker',
-    manufacturer: pick('manufacturer'),
+    manufacturer,
     model: pick('modelName'),
     modelNumber: pick('modelNumber'),
     iconUrl: icons[0]?.url ? resolveUrl(icons[0].url, base) : undefined,
@@ -108,6 +120,7 @@ export function parseDescription(xml: string, location: string): Renderer | null
     renderingControl: rc?.url,
     avServiceType: av.type,
     rcServiceType: rc?.type,
+    yxc,
   };
 }
 

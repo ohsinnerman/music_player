@@ -13,8 +13,17 @@ Focus: speed, stability, sound quality, receivers, library.
     Real file names are now used, and existing songs are repaired on first launch
   - Crash screen with "Try again" instead of a blank app; Settings → Diagnostics shows recent errors and
     playback failures and can share them
-- Sound: 24-bit (float) playback + 5.1 → stereo downmix, bit-perfect USB DAC mode (Android 14+), ReplayGain, parametric EQ with AutoEQ headphone presets
-- Receivers: Yamaha MusicCast control, Google Cast (TVs and speakers) in the Play-on picker
+- Sound (Settings → Sound & equalizer, [docs/SOUND.md](docs/SOUND.md))
+  - 32-bit float output: 24-bit files are no longer reduced to 16-bit
+  - 10-band EQ with presets, plus AutoEq headphone correction (~8 800 measured models), no-clip pre-amp
+  - ReplayGain track / album with pre-amp, fallback gain and clipping prevention (FLAC, Ogg, Opus R128, MP3, M4A tags)
+  - 5.1 / 7.1 → stereo downmix (ITU coefficients)
+  - Bit-perfect USB DAC mode on Android 14+ (falls back to the song's own rate when the DAC can't)
+  - The Audio quality sheet shows the float stage, applied processing and bit-perfect state
+- Play on (docs/DLNA.md)
+  - Google Cast: Chromecast, Google TV, Nest speakers, Cast-enabled TVs / receivers and speaker groups, original file
+  - Redesigned Spotify-style picker: device that's playing (with song, volume, controls), This phone, Google Cast, DLNA — with TV / speaker / receiver / group icons
+  - Yamaha MusicCast remote: power, volume in dB, mute, zones, input, Pure Direct, sound programs, enhancer, sleep
 - Library: album and artist pages for your own music with covers, photos and bios from the web; fake-lossless detector
 - iOS build with native Liquid Glass
 

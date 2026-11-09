@@ -22,6 +22,73 @@ class AuraCastModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("AuraCast")
 
+    Events("onCastDevices", "onCastSession", "onCastStatus")
+
+    OnCreate {
+      GoogleCast.emit = { name, body -> sendEvent(name, body) }
+    }
+
+    OnDestroy {
+      GoogleCast.emit = null
+      GoogleCast.stopDiscovery()
+    }
+
+    /* ───── Google Cast ───── */
+
+    AsyncFunction("gcInit") { promise: Promise ->
+      GoogleCast.init(context) { err -> if (err == null) promise.resolve(true) else promise.reject("ERR_GCAST", err, null) }
+    }
+
+    Function("gcStartDiscovery") {
+      GoogleCast.startDiscovery()
+      Unit
+    }
+
+    Function("gcStopDiscovery") {
+      GoogleCast.stopDiscovery()
+      Unit
+    }
+
+    Function("gcDevices") { GoogleCast.devices() }
+
+    AsyncFunction("gcConnect") { id: String, promise: Promise ->
+      GoogleCast.connect(id) { err -> if (err == null) promise.resolve(true) else promise.reject("ERR_GCAST", err, null) }
+    }
+
+    Function("gcDisconnect") {
+      GoogleCast.disconnect()
+      Unit
+    }
+
+    AsyncFunction("gcLoad") { o: Map<String, Any?>, promise: Promise ->
+      GoogleCast.load(o) { err -> if (err == null) promise.resolve(true) else promise.reject("ERR_GCAST_LOAD", err, null) }
+    }
+
+    Function("gcPlay") {
+      GoogleCast.play()
+      Unit
+    }
+
+    Function("gcPause") {
+      GoogleCast.pause()
+      Unit
+    }
+
+    Function("gcSeek") { sec: Double ->
+      GoogleCast.seek(sec)
+      Unit
+    }
+
+    Function("gcStop") {
+      GoogleCast.stop()
+      Unit
+    }
+
+    Function("gcSetVolume") { v: Double ->
+      GoogleCast.setVolume(v)
+      Unit
+    }
+
     AsyncFunction("discover") { timeoutMs: Int, st: String, promise: Promise ->
       io.execute {
         try {

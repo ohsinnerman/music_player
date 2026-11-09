@@ -69,7 +69,7 @@ export interface Assessment {
 export type StepState = 'good' | 'info' | 'warn' | 'loss';
 
 export interface PathStep {
-  key: 'source' | 'decode' | 'mix' | 'output';
+  key: 'source' | 'decode' | 'dsp' | 'mix' | 'output';
   title: string;
   value: string;
   detail: string;
@@ -242,8 +242,24 @@ function castPath(s: SourceSpec, target: CastTarget): SignalPath {
   return { steps, effective, verdict, state: worst(steps.map((x) => x.state)), tips };
 }
 
-export function signalPath(s: SourceSpec, out: OutputInfoLike | null, cast?: CastTarget | null): SignalPath {
+/** Subset of the native DspState the path needs (see modules/aura-audio-route). */
+export interface DspLike {
+  hooked?: boolean;
+  active?: boolean;
+  downmixed?: boolean;
+  inputChannels?: number;
+  replayGain?: { source: string; gainDb: number };
+  eqFilters?: number;
+  bitPerfect?: { state: string; device?: string | null };
+}
+
+const signedDb = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)} dB`;
+
+export function signalPath(s: SourceSpec, out: OutputInfoLike | null, cast?: CastTarget | null, dsp?: DspLike | null): SignalPath {
   if (cast) return castPath(s, cast);
+  // Aura's float output stage (Android, patched player): 24-bit survives decoding.
+  const float = !!dsp?.hooked;
+  const bp = float ? dsp?.bitPerfect?.state : undefined;
   const a = assess(s);
   const steps: PathStep[] = [];
   const tips: string[] = [];
@@ -261,7 +277,17 @@ export function signalPath(s: SourceSpec, out: OutputInfoLike | null, cast?: Cas
   });
 
   // 2 · Decode
-  if (s.lossless && (s.bitsPerSample ?? 16) > DECODE_BITS) {
+  if (float) {
+    steps.push({
+      key: 'decode',
+      title: 'Decode',
+      value: `${s.lossless && s.bitsPerSample ? `${s.bitsPerSample}-bit` : s.codec} → 32-bit float`,
+      detail: s.lossless
+        ? `Decoded in 32-bit float, which holds every bit of a ${s.bitsPerSample ?? 16}-bit file exactly.`
+        : 'Decoded in 32-bit float; the detail removed at encoding can’t come back, but nothing more is lost.',
+      state: 'good',
+    });
+  } else if (s.lossless && (s.bitsPerSample ?? 16) > DECODE_BITS) {
     steps.push({
       key: 'decode',
       title: 'Decode',
@@ -279,9 +305,53 @@ export function signalPath(s: SourceSpec, out: OutputInfoLike | null, cast?: Cas
     });
   }
 
+  // 2b · Processing you asked for (downmix, ReplayGain, EQ)
+  if (float && dsp?.active) {
+    const parts: string[] = [];
+    const why: string[] = [];
+    if (dsp.downmixed) {
+      parts.push(`${dsp.inputChannels ?? 'Surround'} ch → stereo`);
+      why.push('surround channels are mixed down to stereo');
+    }
+    const rg = dsp.replayGain;
+    if (rg && rg.source !== 'off' && Math.abs(rg.gainDb) >= 0.05) {
+      parts.push(`ReplayGain ${signedDb(rg.gainDb)}`);
+      why.push(rg.source === 'none' ? 'no ReplayGain tags, so your fallback gain is used' : `ReplayGain (${rg.source}) evens out loudness`);
+    }
+    if (dsp.eqFilters) {
+      parts.push('EQ');
+      why.push(`your equalizer (${dsp.eqFilters} filters) shapes the sound`);
+    }
+    if (parts.length) {
+      steps.push({
+        key: 'dsp',
+        title: 'Sound settings',
+        value: parts.join(' · '),
+        detail: `In 32-bit float: ${why.join('; ')}. Intentional changes — turn them off in Settings → Sound for an untouched signal.`,
+        state: 'info',
+      });
+    }
+  }
+
   // 3 · Mix
   const resampled = !!srcRate && srcRate !== mixer;
-  if (dev?.type === 'usb') {
+  if (bp === 'bit-perfect' && dev?.type === 'usb') {
+    steps.push({
+      key: 'mix',
+      title: 'Android mixer',
+      value: 'Bypassed · bit-perfect',
+      detail: `Android opened your USB DAC at ${khz(srcRate ?? mixer)} kHz in bit-perfect mode: no mixing, resampling or digital volume. Use the DAC’s own volume.`,
+      state: 'good',
+    });
+  } else if (bp === 'native-rate' && dev?.type === 'usb') {
+    steps.push({
+      key: 'mix',
+      title: 'Android mixer',
+      value: `${khz(srcRate ?? mixer)} kHz · no resampling`,
+      detail: 'Your DAC was opened at the song’s own rate, so nothing is resampled. It isn’t offered bit-perfect at this rate, so Android’s volume still applies.',
+      state: 'good',
+    });
+  } else if (dev?.type === 'usb') {
     const native = !srcRate || !dev.sampleRates.length || dev.sampleRates.includes(srcRate);
     steps.push({
       key: 'mix',
@@ -353,7 +423,7 @@ export function signalPath(s: SourceSpec, out: OutputInfoLike | null, cast?: Cas
   steps.push({ key: 'output', title: 'Output', value: name, detail: outDetail, state: outState });
 
   // Verdict
-  const effBits = s.lossless ? Math.min(s.bitsPerSample ?? 16, DECODE_BITS) : null;
+  const effBits = s.lossless ? Math.min(s.bitsPerSample ?? 16, float ? 24 : DECODE_BITS) : null;
   const effRate = dev?.type === 'usb' && srcRate ? srcRate : mixer;
   const effective = `${effBits ? `${effBits}-bit / ` : ''}${khz(effRate)} kHz → ${OUTPUT_NAMES[type] ?? 'output'}`;
   let verdict: string;
@@ -365,11 +435,15 @@ export function signalPath(s: SourceSpec, out: OutputInfoLike | null, cast?: Cas
   } else if (!s.lossless) {
     verdict = `This file is ${a.label.toLowerCase()} compressed audio (${a.spec}), so the path can’t add back what the encoder removed — but nothing else is lost.`;
     if (a.tier !== 'high') tips.push('A FLAC or ALAC copy of this song would sound noticeably cleaner.');
+  } else if (bp === 'bit-perfect' && dev?.type === 'usb') {
+    verdict = 'Bit-perfect: your DAC receives exactly the samples in the file.';
   } else if (a.tier === 'hires') {
     verdict =
       dev?.type === 'usb'
         ? 'Hi-Res file into a USB DAC: as close to the master as this phone gets.'
-        : `Hi-Res file, rendered at ${effBits}-bit / ${khz(effRate)} kHz by Android — beyond-CD detail is trimmed, everything audible remains.`;
+        : float
+          ? `Hi-Res file kept at ${effBits}-bit by Aura, then mixed at ${khz(effRate)} kHz by Android — everything audible remains.`
+          : `Hi-Res file, rendered at ${effBits}-bit / ${khz(effRate)} kHz by Android — beyond-CD detail is trimmed, everything audible remains.`;
     if (dev?.type !== 'usb') tips.push('A USB DAC lets the phone run closer to the file’s full resolution.');
   } else if (resampled && dev?.type !== 'usb') {
     verdict = `CD-quality lossless, resampled to ${khz(mixer)} kHz — clean and transparent.`;

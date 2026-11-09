@@ -1,15 +1,16 @@
 import Constants from 'expo-constants';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { CircleCheck, CircleX, LogOut, type LucideIcon, Moon, ShieldCheck, Smartphone, Sun, Trash2, UserRound, X } from 'lucide-react-native';
-import { type ReactNode, useState } from 'react';
-import { Alert, Linking, Platform, ScrollView, Share, StyleSheet, Switch, View } from 'react-native';
+import { CircleCheck, CircleX, LogOut, type LucideIcon, Moon, ShieldCheck, SlidersHorizontal, Smartphone, Sun, Trash2, UserRound, X } from 'lucide-react-native';
+import { useState } from 'react';
+import { Alert, Linking, Platform, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { endpoints } from '@/api/endpoints';
 import { queryClient } from '@/api/queries';
 import { useAuth } from '@/auth/store';
 import { openCastSheet } from '@/components/cast/CastSheet';
 import { GlassControl } from '@/components/settings/GlassControl';
+import { Group, Row, Toggle } from '@/components/settings/Rows';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -21,56 +22,6 @@ import { useLocalLibrary } from '@/library/store';
 import { diagnosticsText, useDiagnostics } from '@/lib/diagnostics';
 import { ALLOW_CLEARTEXT, type ThemeMode, checkServerUrl, useSettings } from '@/settings/store';
 import { GUTTER, fonts, makeStyles, radius, useColors } from '@/theme';
-
-function Group({ title, children, footer }: { title: string; children: ReactNode; footer?: string }) {
-  const styles = useStyles();
-  return (
-    <View style={{ marginTop: 28 }}>
-      <Text variant="label" tone="tertiary" style={{ marginLeft: GUTTER + 4, marginBottom: 8 }}>
-        {title}
-      </Text>
-      <View style={styles.group}>{children}</View>
-      {footer ? (
-        <Text variant="footnote" tone="tertiary" style={{ marginHorizontal: GUTTER + 4, marginTop: 8 }}>
-          {footer}
-        </Text>
-      ) : null}
-    </View>
-  );
-}
-
-function Row({ icon: Icon, label, onPress, color: colorProp, right }: { icon?: LucideIcon; label: string; onPress?: () => void; color?: string; right?: ReactNode }) {
-  const colors = useColors();
-  const color = colorProp ?? colors.text;
-  const styles = useStyles();
-  return (
-    <PressableScale onPress={onPress} disabled={!onPress} dim scaleTo={0.99} style={styles.row}>
-      {Icon ? <Icon size={20} color={color} strokeWidth={2} /> : null}
-      <Text variant="body" color={color} style={{ flex: 1 }}>
-        {label}
-      </Text>
-      {right}
-    </PressableScale>
-  );
-}
-
-function Toggle({ label, value, onChange, hint }: { label: string; value: boolean; onChange: () => void; hint?: string }) {
-  const colors = useColors();
-  const styles = useStyles();
-  return (
-    <View style={styles.row}>
-      <View style={{ flex: 1 }}>
-        <Text variant="body">{label}</Text>
-        {hint ? (
-          <Text variant="footnote" tone="tertiary">
-            {hint}
-          </Text>
-        ) : null}
-      </View>
-      <Switch value={value} onValueChange={onChange} trackColor={{ true: colors.accent, false: colors.fillStrong }} thumbColor="#fff" accessibilityLabel={label} />
-    </View>
-  );
-}
 
 const MODES: { mode: ThemeMode; label: string; icon: LucideIcon }[] = [
   { mode: 'system', label: 'System', icon: Smartphone },
@@ -354,6 +305,12 @@ export default function Settings() {
           <View style={styles.sep} />
           <Toggle label="Haptics" value={s.haptics} onChange={() => s.toggle('haptics')} />
         </Group>
+
+        {Platform.OS === 'android' ? (
+          <Group title="Sound" footer="Equalizer with headphone correction, ReplayGain, 24-bit output, surround downmix and bit-perfect USB DACs.">
+            <Row icon={SlidersHorizontal} label="Sound & equalizer" onPress={() => router.push('/sound')} />
+          </Group>
+        ) : null}
 
         <Group title="Play on Wi-Fi speakers" footer="Sends songs to a DLNA receiver or speaker (Yamaha MusicCast, Denon/Marantz HEOS, Sonos, smart TVs…) as the original file — no transcoding, and Android’s audio mixer is bypassed.">
           <Row label="Choose a speaker or receiver" onPress={openCastSheet} />

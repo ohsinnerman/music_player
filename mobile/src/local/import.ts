@@ -116,6 +116,7 @@ async function toTrack({ file, name }: Picked): Promise<Track | null> {
       lossless: tags.lossless,
       encoder: tags.encoder,
       vbr: tags.vbr,
+      replayGain: tags.replayGain,
       tags: { title: tags.title, artist: tags.artist, album: tags.album, year: tags.year, genre: tags.genre, trackNo: tags.trackNo },
       addedAt: new Date().toISOString(),
     },
@@ -273,6 +274,7 @@ export async function refreshFileInfo(track: Track): Promise<Track> {
     lossless: tags.lossless,
     encoder: tags.encoder,
     vbr: tags.vbr,
+    replayGain: tags.replayGain,
   };
   const patch: Partial<Track> = { local, durationMs: track.durationMs || Math.round((tags.durationSec ?? 0) * 1000) };
   useDeviceMusic.getState().patchTrack(track.id, patch);

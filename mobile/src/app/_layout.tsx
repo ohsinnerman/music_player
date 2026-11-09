@@ -32,6 +32,7 @@ import { player } from '@/player/engine';
 import { useSettings } from '@/settings/store';
 import { ThemeProvider, useColors } from '@/theme';
 import '@/library/hooks'; // registers guest → account library sync
+import '@/audio/sound'; // pushes sound settings (EQ, ReplayGain…) to the player
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 installGlobalHandlers();

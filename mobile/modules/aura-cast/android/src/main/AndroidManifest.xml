@@ -8,6 +8,10 @@
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
   <application>
+    <!-- Google Cast: which receiver app to launch and how (see GoogleCast.kt). -->
+    <meta-data
+      android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+      android:value="expo.modules.auracast.AuraCastOptionsProvider" />
     <!-- Keeps the phone serving the file while the screen is off and the receiver is playing. -->
     <service
       android:name="expo.modules.auracast.CastService"

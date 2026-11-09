@@ -44,8 +44,60 @@ export interface TagResult {
   /** Time-stamped lyrics from SYLT / SYNCEDLYRICS. */
   syncedLyrics?: SyncedLine[];
   picture?: Picture;
+  /** ReplayGain tags (dB / linear peak). Opus R128 gains are converted to the ReplayGain reference. */
+  replayGain?: ReplayGainTags;
   /** Byte offset where audio frames begin (after a leading ID3v2 tag). */
   audioStart?: number;
+}
+
+export interface ReplayGainTags {
+  trackGain?: number;
+  trackPeak?: number;
+  albumGain?: number;
+  albumPeak?: number;
+}
+
+const num = (v: string) => {
+  const m = /^\s*([+-]?\d+(?:[.,]\d+)?)/.exec(v);
+  return m ? Number(m[1]!.replace(',', '.')) : undefined;
+};
+
+/** Record a ReplayGain-ish tag (any case) on `out`; returns true if the key was one. */
+export function replayGainTag(out: Pick<Partial<TagResult>, 'replayGain'>, key: string, value: string): boolean {
+  const k = key.trim().toUpperCase();
+  const set = (field: keyof ReplayGainTags, v: number | undefined, ok: (n: number) => boolean) => {
+    if (v === undefined || !Number.isFinite(v) || !ok(v)) return;
+    const rg = (out.replayGain ??= {});
+    rg[field] ??= v;
+  };
+  const gain = (n: number) => n > -60 && n < 30;
+  const peak = (n: number) => n > 0 && n < 10;
+  switch (k) {
+    case 'REPLAYGAIN_TRACK_GAIN':
+      set('trackGain', num(value), gain);
+      return true;
+    case 'REPLAYGAIN_ALBUM_GAIN':
+      set('albumGain', num(value), gain);
+      return true;
+    case 'REPLAYGAIN_TRACK_PEAK':
+      set('trackPeak', num(value), peak);
+      return true;
+    case 'REPLAYGAIN_ALBUM_PEAK':
+      set('albumPeak', num(value), peak);
+      return true;
+    case 'R128_TRACK_GAIN': {
+      const n = num(value);
+      set('trackGain', n === undefined ? undefined : n / 256 + 5, gain);
+      return true;
+    }
+    case 'R128_ALBUM_GAIN': {
+      const n = num(value);
+      set('albumGain', n === undefined ? undefined : n / 256 + 5, gain);
+      return true;
+    }
+    default:
+      return false;
+  }
 }
 
 /** Fields a later source may fill in when an earlier one left them empty. */

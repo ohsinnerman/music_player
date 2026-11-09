@@ -1,6 +1,6 @@
 import { ascii, base64ToBytes, clean, latin1, u32be, u32le, utf8 } from './bytes';
 import { sniffImage } from './id3';
-import { type Picture, type TagResult, firstNumber, genreName, yearOf } from './types';
+import { type Picture, type TagResult, firstNumber, genreName, replayGainTag, yearOf } from './types';
 
 /** FLAC METADATA_BLOCK_PICTURE (also used base64-encoded inside Ogg comments). */
 export function parseFlacPicture(b: Uint8Array): { type: number; pic: Picture } | null {
@@ -71,6 +71,7 @@ export function parseVorbisComments(b: Uint8Array): Partial<TagResult> {
   out.trackNo = firstNumber(one('TRACKNUMBER', 'TRACK'));
   out.discNo = firstNumber(one('DISCNUMBER', 'DISC'));
   out.lyrics = multi.SYNCEDLYRICS?.[0] ?? multi.LYRICS?.[0] ?? multi.UNSYNCEDLYRICS?.[0];
+  for (const [k, v] of Object.entries(multi)) if (v[0]) replayGainTag(out, k, v[0]);
   if (pictures.length) out.picture = pictures.sort((a, b) => (a.type === 3 ? -1 : b.type === 3 ? 1 : 0))[0]!.pic;
   return out;
 }

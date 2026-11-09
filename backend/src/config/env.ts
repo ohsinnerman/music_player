@@ -51,6 +51,8 @@ const schema = z.object({
   JAMENDO_API_BASE: z.url().default('https://api.jamendo.com/v3.0'),
   JAMENDO_CLIENT_ID: z.string().optional(),
   LRCLIB_API_BASE: z.url().default('https://lrclib.net/api'),
+  /** AutoEq headphone presets (raw GitHub of jaakkopasanen/AutoEq). */
+  AUTOEQ_BASE: z.url().default('https://raw.githubusercontent.com/jaakkopasanen/AutoEq/master'),
 
   UPSTREAM_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(8000),
   CACHE_MAX_ENTRIES: z.coerce.number().int().min(100).max(100000).default(5000),

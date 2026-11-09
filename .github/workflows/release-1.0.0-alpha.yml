@@ -18,15 +18,26 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       SHA: 9812ede
     steps:
-      - name: Create release if missing
+      - name: Fetch the 1.0.0-alpha APK
+        id: apk
         run: |
           set -e
-          if gh release view v1.0.0-alpha -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "v1.0.0-alpha already exists"; exit 0
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/v1.0.0-alpha" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          FULL=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA" --jq .sha)
+          echo "full=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA" --jq .sha)" >> "$GITHUB_OUTPUT"
           gh release download latest -R "$GITHUB_REPOSITORY" -p "aura-1.0.0-$SHA.apk"
-          gh release create v1.0.0-alpha "aura-1.0.0-$SHA.apk" -R "$GITHUB_REPOSITORY" \
-            --target "$FULL" --prerelease --latest=false \
-            --title "Aura 1.0.0-alpha" \
-            --notes "First public alpha. See [CHANGELOG.md](https://github.com/$GITHUB_REPOSITORY/blob/main/CHANGELOG.md#100-alpha--2026-11-09). Install **aura-1.0.0-$SHA.apk** on Android 8+."
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+      - name: Publish v1.0.0-alpha
+        if: steps.apk.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0-alpha
+          target_commitish: ${{ steps.apk.outputs.full }}
+          name: Aura 1.0.0-alpha
+          prerelease: true
+          make_latest: false
+          body: |
+            First public alpha. See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md#100-alpha--2026-11-09).
+            Install **aura-1.0.0-${{ env.SHA }}.apk** on Android 8+.
+          files: aura-1.0.0-${{ env.SHA }}.apk

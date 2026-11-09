@@ -55,7 +55,8 @@
     "lint": "eslint src app.config.ts plugins",
     "prebuild": "expo prebuild --platform android --clean",
     "build:apk": "expo prebuild --platform android --clean && cd android && ./gradlew assembleRelease",
-    "test": "vitest run"
+    "test": "vitest run",
+    "postinstall": "node scripts/patch-expo-audio.js"
   },
   "private": true
 }

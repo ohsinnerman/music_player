@@ -70,4 +70,17 @@ describe('signalPath', () => {
     expect(p.state).toBe('good');
     expect(p.verdict).toMatch(/no resampling/);
   });
+
+  it('with Aura’s float output: 24-bit kept, processing listed, bit-perfect USB', () => {
+    const wired = signalPath(hires, out('wired'), null, { hooked: true, active: true, replayGain: { source: 'track', gainDb: -6.5 }, eqFilters: 3 });
+    expect(wired.steps.find((s) => s.key === 'decode')!.value).toBe('24-bit → 32-bit float');
+    expect(wired.steps.find((s) => s.key === 'dsp')!.value).toBe('ReplayGain −6.5 dB · EQ');
+    expect(wired.effective).toBe('24-bit / 48 kHz → Wired headphones');
+
+    const usb = out('usb', { device: { type: 'usb', name: 'DAC', sampleRates: [96000], encodings: [] } });
+    const bp = signalPath(hires, usb, null, { hooked: true, active: true, bitPerfect: { state: 'bit-perfect' } });
+    expect(bp.steps.find((s) => s.key === 'mix')!.value).toMatch(/bit-perfect/);
+    expect(bp.steps.some((s) => s.key === 'dsp')).toBe(false);
+    expect(bp.verdict).toMatch(/Bit-perfect/);
+  });
 });

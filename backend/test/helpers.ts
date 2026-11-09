@@ -71,6 +71,7 @@ export function fakeFetch(overrides: Handler[] = []) {
     calls.push(url.href);
     for (const h of handlers) {
       const r = h(url, init);
+      if (r && typeof r.body === 'string') return new Response(r.body, { status: r.status ?? 200, headers: { 'content-type': 'text/plain' } });
       if (r) return new Response(JSON.stringify(r.body), { status: r.status ?? 200, headers: { 'content-type': 'application/json' } });
     }
     return new Response(JSON.stringify({ message: 'unmocked' }), { status: 404 });

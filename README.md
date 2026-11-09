@@ -30,7 +30,8 @@ living artwork and spring physics.
 - **Living artwork** — the player background is the cover, blurred and slowly orbiting (Skia, rendered at ⅕ resolution for ~4% of the GPU cost), tinted by a palette extracted on-device.
 - **Synced lyrics** — LRCLIB lyrics that follow the song line by line, tap any line to jump there.
 - **Your own music, with lyrics** — add FLAC, WAV, MP3, M4A, OGG or Opus files or whole folders from your phone. Aura reads their tags, cover art and embedded lyrics itself, works out which song each file is (tags → file name → **Groq AI**, or by **listening** to a 20-second clip with Whisper) and fetches synced lyrics ([docs/LOCAL_MUSIC.md](docs/LOCAL_MUSIC.md)).
-- **Play on your receiver, bit-perfect** — send songs to a DLNA receiver or speaker (Yamaha MusicCast, HEOS, smart TVs…) over Wi-Fi as the untouched original file; the phone's mixer is bypassed and queue, seek and receiver volume all work ([docs/DLNA.md](docs/DLNA.md)).
+- **Play on your TV, speaker or receiver** — a Spotify-style *Play on* picker for Google Cast (Chromecast, Google TV, Nest, Cast TVs) and DLNA receivers / speakers (Yamaha MusicCast, HEOS, smart TVs…). The untouched original file goes over Wi-Fi; queue, seek and volume all work, and MusicCast receivers get a full remote: power, input, Pure Direct, sound programs, zones ([docs/DLNA.md](docs/DLNA.md)).
+- **Sound like a hi-fi app** — 32-bit float output that keeps 24-bit files intact, a 10-band EQ with presets and AutoEq headphone correction (~8 800 models), ReplayGain (track/album), 5.1 → stereo downmix, and bit-perfect playback to USB DACs on Android 14+ ([docs/SOUND.md](docs/SOUND.md)).
 - **Audio quality you can see** — Hi-Res / Lossless / bitrate badges for every song, and a Poweramp-style *How it’s playing* sheet: file (codec, bit depth, sample rate, encoder) → decoder → Android mixer → your output (wired, USB DAC, Bluetooth…), with honest verdicts ([docs/AUDIO_QUALITY.md](docs/AUDIO_QUALITY.md)).
 - **Light & dark** — System / Light / Dark appearance; the player always keeps its artwork-tinted dark look.
 - **Real streaming** — Audius full tracks (free, artist-owned), Deezer chart previews, optional Jamendo. Pluggable providers so you can drop in your own source later ([docs/PROVIDERS.md](docs/PROVIDERS.md)).
@@ -73,7 +74,8 @@ See [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
 - [Mobile app internals](docs/MOBILE.md)
 - [Your own music + AI lyrics (Groq)](docs/LOCAL_MUSIC.md)
 - [Audio quality & signal path](docs/AUDIO_QUALITY.md)
-- [Play on Wi-Fi receivers (DLNA)](docs/DLNA.md)
+- [Sound: EQ, ReplayGain, 24-bit, bit-perfect USB](docs/SOUND.md)
+- [Play on TVs, speakers & receivers (DLNA, Google Cast, MusicCast)](docs/DLNA.md)
 - [Music providers / plugging in your own catalogue](docs/PROVIDERS.md)
 - [Deployment](docs/DEPLOYMENT.md)
 - [Building the APK](docs/BUILD_APK.md)

@@ -12,8 +12,11 @@ import android.os.Build
 import android.provider.OpenableColumns
 import android.os.Handler
 import android.os.Looper
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import org.json.JSONObject
 
 /**
  * Tells the app where audio is actually going and at what format, so the
@@ -22,6 +25,7 @@ import expo.modules.kotlin.modules.ModuleDefinition
  * whether the device offers a bit-perfect path (Android 14+ USB).
  * Read-only; needs no permissions.
  */
+@OptIn(markerClass = [UnstableApi::class])
 class AuraAudioRouteModule : Module() {
   private val audioManager: AudioManager?
     get() = appContext.reactContext?.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
@@ -35,6 +39,17 @@ class AuraAudioRouteModule : Module() {
 
     Function("getOutputInfo") {
       outputInfo()
+    }
+
+    /** Sound settings (ReplayGain, EQ, downmix, bit-perfect) as JSON; applied live by the player. */
+    Function("setSoundConfig") { json: String ->
+      appContext.reactContext?.applicationContext?.let { if (AuraDsp.appContext == null) AuraDsp.appContext = it }
+      AuraDsp.update(parseSound(JSONObject(json)))
+    }
+
+    /** What the player's output stage is doing right now. */
+    Function("getDspState") {
+      AuraDsp.state + mapOf("bitPerfect" to AuraDsp.bitPerfect, "hooked" to AuraDsp.hooked)
     }
 
     /** Real file names for picked files (content:// URIs don't contain them). Runs off the JS thread. */
@@ -162,5 +177,35 @@ class AuraAudioRouteModule : Module() {
     AudioFormat.ENCODING_PCM_FLOAT -> "float"
     AudioFormat.ENCODING_PCM_8BIT -> "pcm8"
     else -> "enc$e"
+  }
+
+  private fun parseSound(o: JSONObject): SoundConfig {
+    val filters = mutableListOf<EqFilter>()
+    o.optJSONArray("filters")?.let { a ->
+      for (i in 0 until minOf(a.length(), 32)) {
+        val f = a.optJSONObject(i) ?: continue
+        val type = when (f.optString("type")) {
+          "LSC" -> EqFilter.LOW_SHELF
+          "HSC" -> EqFilter.HIGH_SHELF
+          else -> EqFilter.PEAK
+        }
+        filters.add(EqFilter(type, f.optDouble("fc", 1000.0), f.optDouble("gainDb", 0.0).coerceIn(-24.0, 24.0), f.optDouble("q", 1.0).coerceIn(0.05, 30.0)))
+      }
+    }
+    return SoundConfig(
+      replayGain = when (o.optString("replayGain")) {
+        "track" -> 1
+        "album" -> 2
+        else -> 0
+      },
+      preampDb = o.optDouble("preampDb", 0.0).coerceIn(-15.0, 15.0),
+      noTagDb = o.optDouble("noTagDb", 0.0).coerceIn(-15.0, 15.0),
+      preventClip = o.optBoolean("preventClip", true),
+      downmix = o.optBoolean("downmix", true),
+      eqEnabled = o.optBoolean("eqEnabled", false),
+      eqPreampDb = o.optDouble("eqPreampDb", 0.0).coerceIn(-30.0, 6.0),
+      filters = filters,
+      bitPerfect = o.optBoolean("bitPerfect", false),
+    )
   }
 }

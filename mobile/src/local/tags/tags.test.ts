@@ -144,6 +144,14 @@ describe('readTags', () => {
     expect(lo).toMatchObject({ bitsPerSample: 16, lossless: true });
   });
 
+  it('ReplayGain tags (Vorbis comments and ID3 TXXX)', async () => {
+    const f = await readTags(fx('rg.flac'));
+    expect(f.replayGain).toEqual({ trackGain: -6.48, trackPeak: 0.977, albumGain: -5.9 });
+    const m = await readTags(fx('rg.mp3'));
+    expect(m.replayGain).toEqual({ trackGain: -7.25, trackPeak: 0.5 });
+    expect((await readTags(fx('tagged.flac'))).replayGain).toBeUndefined();
+  });
+
   it('never throws on junk', async () => {
     const junk = new Uint8Array(4096).map((_, i) => (i * 7919) & 0xff);
     await expect(readTags(memorySource(junk))).resolves.toMatchObject({ format: 'unknown' });

@@ -1,6 +1,6 @@
 import { ascii, clean, concat, latin1, lastIndexOf, bytesOf, u16be, u16le, u24be, u32be, u32le, u64be, u64le, utf8 } from './bytes';
 import { parseId3v2, sniffImage } from './id3';
-import { type ByteSource, type TagResult, ID3V1_GENRES, genreName, yearOf } from './types';
+import { type ByteSource, type TagResult, ID3V1_GENRES, genreName, replayGainTag, yearOf } from './types';
 import { parseFlacPicture, parseVorbisComments } from './vorbis';
 
 const MAX_META = 24 * 1024 * 1024; // never pull more than this into memory for tags
@@ -270,6 +270,9 @@ export async function readMp4(src: ByteSource): Promise<Partial<TagResult>> {
       case '©lyr':
       case '----:LYRICS':
         out.lyrics ??= text();
+        break;
+      default:
+        if (key.startsWith('----:')) replayGainTag(out, key.slice(5), text() ?? '');
         break;
       case 'covr':
         if (!out.picture && payload.length > 32) {

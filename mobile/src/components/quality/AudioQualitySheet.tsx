@@ -3,7 +3,7 @@ import { CircleAlert, CircleCheck, CircleMinus, Info, Lightbulb } from 'lucide-r
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { addRouteListener, getOutputInfo, type OutputInfo } from '../../../modules/aura-audio-route';
+import { addRouteListener, type DspState, getDspState, getOutputInfo, type OutputInfo } from '../../../modules/aura-audio-route';
 import type { Track } from '@/api/types';
 import { formatTime } from '@/lib/format';
 import { haptic } from '@/lib/haptics';
@@ -101,12 +101,16 @@ function AudioQuality({ trackId, initial }: { trackId: string; initial: Track })
   const fromQueue = usePlayer((s) => s.queue.find((t) => t.id === trackId));
   const track = fromLibrary ?? fromQueue ?? initial;
   const [out, setOut] = useState<OutputInfo>(() => getOutputInfo());
+  const [dsp, setDsp] = useState<DspState>(() => getDspState());
   const [missing, setMissing] = useState(false);
 
   // Follow headphones being plugged in / Bluetooth connecting while the sheet is open.
   useEffect(() => {
     const off = addRouteListener(setOut);
-    const poll = setInterval(() => setOut(getOutputInfo()), 4000);
+    const poll = setInterval(() => {
+      setOut(getOutputInfo());
+      setDsp(getDspState());
+    }, 2000);
     return () => {
       off();
       clearInterval(poll);
@@ -122,7 +126,12 @@ function AudioQuality({ trackId, initial }: { trackId: string; initial: Track })
   const spec = useMemo(() => specOf(track), [track]);
   const a = assess(spec);
   const castTo = useCast((s) => s.active);
-  const path = useMemo(() => signalPath(spec, out.available ? out : null, castTo ? { name: castTo.name, model: castTo.model } : null), [spec, out, castTo]);
+  // The live output stage describes the song that's playing, not necessarily this one.
+  const playing = usePlayer((s) => s.queue[s.index]?.id === trackId);
+  const path = useMemo(
+    () => signalPath(spec, out.available ? out : null, castTo ? { name: castTo.name, model: castTo.model } : null, dsp.hooked ? (playing ? dsp : { hooked: true }) : null),
+    [spec, out, castTo, dsp, playing],
+  );
   const tc = tierColor(a.tier, colors);
   const l = track.local;
 

@@ -12,6 +12,7 @@ import { createProviders } from './providers/registry.js';
 import { createTokenService } from './security/tokens.js';
 import { createCatalogService } from './services/catalog.js';
 import { createGroq } from './services/groq.js';
+import { createAutoEqService } from './services/autoeq.js';
 import { createIdentifyService } from './services/identify.js';
 import { createLyricsService } from './services/lyrics.js';
 import { createMemoryStore } from './store/memory.js';
@@ -46,6 +47,11 @@ export function buildApp({ env, store, logger, fetchImpl }: AppDeps): BuiltApp {
   });
   const lyrics = createLyricsService(lyricsHttp, env.LRCLIB_API_BASE, cache);
   const tokens = createTokenService(env, db);
+  const autoeq = createAutoEqService(
+    createHttpClient({ timeoutMs: env.UPSTREAM_TIMEOUT_MS, userAgent: `${env.AUDIUS_APP_NAME}/1.0`, allowedHosts: [new URL(env.AUTOEQ_BASE).hostname], fetchImpl }),
+    env.AUTOEQ_BASE,
+    cache,
+  );
 
   // Optional AI song identification (Groq). Budgeted per instance per UTC day.
   const groq = env.GROQ_API_KEY
@@ -105,7 +111,7 @@ export function buildApp({ env, store, logger, fetchImpl }: AppDeps): BuiltApp {
   app.get('/', (_req, res) => {
     res.json({ name: 'Aura Music API', docs: 'https://github.com/ohsinnerman/music_player/tree/main/docs', health: '/v1/health' });
   });
-  app.use('/v1', createRoutes({ env, store: db, tokens, catalog, lyrics, identify }));
+  app.use('/v1', createRoutes({ env, store: db, tokens, catalog, lyrics, identify, autoeq }));
   app.use(notFoundHandler);
   app.use(errorHandler(log));
 

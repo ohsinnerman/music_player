@@ -95,7 +95,9 @@ See [LOCAL_MUSIC.md](LOCAL_MUSIC.md).
 badge tap → specOf(track) + getOutputInfo() (native) → signalPath(): file → decode → mixer → output
 ```
 
-See [AUDIO_QUALITY.md](AUDIO_QUALITY.md).
+See [AUDIO_QUALITY.md](AUDIO_QUALITY.md). The player's output stage (float decoding, EQ,
+ReplayGain, downmix, bit-perfect USB) lives in `modules/aura-audio-route` and is plugged into
+expo-audio by `scripts/patch-expo-audio.js` — see [SOUND.md](SOUND.md).
 
 ### Signing in
 
