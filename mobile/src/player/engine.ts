@@ -10,6 +10,8 @@ import { Platform } from 'react-native';
 import { playUrl } from '@/api/client';
 import type { PlayContext, Track } from '@/api/types';
 import { toast } from '@/components/ui/Toast';
+import * as cast from '@/cast/session';
+import type { Renderer } from '@/cast/upnp';
 import { recordPlay } from '@/library/hooks';
 import { describeFormat, ensurePlayableCopy, playableUri, prefersCopies, setPreferCopies } from '@/local/playback';
 import { type RepeatMode, clock, usePlayer, useProgress } from './store';
@@ -86,6 +88,12 @@ function onIndex(index: number) {
 }
 
 function onStatus(st: AudioPlaylistStatus & { error?: { message?: string } | string }) {
+  // While a receiver is playing, the phone's player stays parked: ignore it, and
+  // stop it if something (a headset button) tries to start it.
+  if (casting()) {
+    if (st.playing) pl?.pause();
+    return;
+  }
   const now = Date.now();
   clock.base.value = st.currentTime;
   clock.at.value = now;
@@ -110,6 +118,58 @@ function onStatus(st: AudioPlaylistStatus & { error?: { message?: string } | str
     void recover(index, code);
   } else if (st.playing) {
     lastErrorIndex = -1;
+  }
+}
+
+/* ───────────────────────── Playing on a DLNA receiver ───────────────────────── */
+
+const casting = () => !!cast.useCast.getState().active;
+
+cast.setCastHooks({
+  onProgress(position, duration, playing, buffering) {
+    clock.base.value = position;
+    clock.at.value = Date.now();
+    clock.playing.value = playing;
+    if (!clock.scrubbing.value) clock.position.value = position;
+    if (duration > 0) clock.duration.value = duration;
+    useProgress.setState({ position, duration: duration > 0 ? duration : useProgress.getState().duration });
+    usePlayer.setState({ isPlaying: playing, isBuffering: buffering });
+  },
+  onEnded() {
+    const { index, queue, repeat } = usePlayer.getState();
+    if (repeat === 'one') void castLoad(index);
+    else if (index < queue.length - 1) void castLoad(index + 1);
+    else if (repeat === 'all' && queue.length) void castLoad(0);
+    else usePlayer.setState({ isPlaying: false });
+  },
+  onLost(message) {
+    toast(message, 'error');
+    usePlayer.setState({ isPlaying: false });
+    resumeAt = useProgress.getState().position;
+    const t = usePlayer.getState().queue[usePlayer.getState().index];
+    if (t) activateLockScreen(t);
+  },
+});
+
+/** Move to a queue index and send that song to the receiver. */
+async function castLoad(i: number, startAt = 0, autoplay = true) {
+  const { queue } = usePlayer.getState();
+  const t = queue[i];
+  if (!t) return;
+  usePlayer.setState({ index: i });
+  pending = { index: i, until: Date.now() + 1500 };
+  try {
+    pl?.skipTo(i); // keep the parked phone player on the same song
+  } catch {
+    /* ignore */
+  }
+  onIndex(i);
+  try {
+    await cast.load(t, startAt, autoplay);
+  } catch (e) {
+    const hasNext = i < queue.length - 1;
+    toast(`${e instanceof Error ? e.message : 'Couldn’t play'}${hasNext ? ' — skipping' : ''}`, 'error');
+    if (hasNext && cast.useCast.getState().active) setTimeout(() => void castLoad(i + 1), 600);
   }
 }
 
@@ -264,6 +324,10 @@ export const player = {
       attempts.clear();
       lastErrorIndex = -1;
       loadNative(queue, index);
+      if (casting()) {
+        await castLoad(index);
+        return;
+      }
       activateLockScreen(first);
       ensure().play();
       onIndex(index);
@@ -280,6 +344,12 @@ export const player = {
   play() {
     const s = usePlayer.getState();
     if (s.index < 0) return;
+    if (casting()) {
+      const st = cast.useCast.getState().status;
+      if (st === 'stopped' || st === 'error') void castLoad(s.index, useProgress.getState().position);
+      else void cast.play();
+      return;
+    }
     void prepareSession();
     const p = ensure();
     activateLockScreen(s.queue[s.index]!);
@@ -296,6 +366,11 @@ export const player = {
     }
   },
   pause() {
+    if (casting()) {
+      usePlayer.setState({ isPlaying: false });
+      void cast.pause();
+      return;
+    }
     pl?.pause();
   },
   toggle() {
@@ -305,18 +380,32 @@ export const player = {
 
   next() {
     const { index, queue, repeat } = usePlayer.getState();
+    if (casting()) {
+      if (index < queue.length - 1) void castLoad(index + 1);
+      else if (repeat === 'all' && queue.length) void castLoad(0);
+      return;
+    }
     if (index < queue.length - 1) ensure().next();
     else if (repeat === 'all' && queue.length) player.skipTo(0);
   },
   previous() {
-    const p = ensure();
     const { index } = usePlayer.getState();
+    if (casting()) {
+      if (useProgress.getState().position > 3 || index === 0) void player.seek(0);
+      else void castLoad(index - 1);
+      return;
+    }
+    const p = ensure();
     if (useProgress.getState().position > 3 || index === 0) void p.seekTo(0);
     else p.previous();
   },
   skipTo(i: number) {
     const { queue } = usePlayer.getState();
     if (i < 0 || i >= queue.length) return;
+    if (casting()) {
+      void castLoad(i);
+      return;
+    }
     pending = { index: i, until: Date.now() + 1200 };
     ensure().skipTo(i);
     usePlayer.setState({ index: i });
@@ -329,6 +418,10 @@ export const player = {
     clock.position.value = s;
     clock.at.value = Date.now();
     useProgress.setState({ position: s });
+    if (casting()) {
+      await cast.seek(s);
+      return;
+    }
     await ensure().seekTo(s).catch(() => undefined);
   },
 
@@ -415,7 +508,52 @@ export const player = {
     persistSoon();
   },
 
+  /** Hand playback to a DLNA receiver, continuing from where the phone is. */
+  async castTo(dev: Renderer) {
+    const s = usePlayer.getState();
+    const at = useProgress.getState().position;
+    const wasPlaying = s.isPlaying || s.index < 0;
+    pl?.pause();
+    if (lockScreenActive) {
+      try {
+        pl?.clearLockScreenControls();
+      } catch {
+        /* ignore */
+      }
+      lockScreenActive = false;
+    }
+    if (cast.useCast.getState().active) await cast.disconnect();
+    try {
+      await cast.connect(dev);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Couldn’t connect', 'error');
+      return;
+    }
+    toast(`Playing on ${dev.name}`, 'success');
+    if (s.index >= 0) await castLoad(s.index, at, wasPlaying);
+  },
+
+  /** Bring playback back to the phone (paused at the same spot). */
+  async stopCasting() {
+    if (!casting()) return;
+    const at = useProgress.getState().position;
+    await cast.disconnect();
+    usePlayer.setState({ isPlaying: false, isBuffering: false });
+    clock.playing.value = false;
+    resumeAt = at;
+    const s = usePlayer.getState();
+    if (s.index >= 0) {
+      try {
+        pl?.skipTo(s.index);
+      } catch {
+        /* ignore */
+      }
+      activateLockScreen(s.queue[s.index]!);
+    }
+  },
+
   stop() {
+    if (casting()) void cast.disconnect();
     pl?.pause();
     pl?.clear();
     if (lockScreenActive) pl?.clearLockScreenControls();

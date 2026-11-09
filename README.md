@@ -30,6 +30,7 @@ living artwork and spring physics.
 - **Living artwork** — the player background is the cover, blurred and slowly orbiting (Skia, rendered at ⅕ resolution for ~4% of the GPU cost), tinted by a palette extracted on-device.
 - **Synced lyrics** — LRCLIB lyrics that follow the song line by line, tap any line to jump there.
 - **Your own music, with lyrics** — add FLAC, WAV, MP3, M4A, OGG or Opus files or whole folders from your phone. Aura reads their tags, cover art and embedded lyrics itself, works out which song each file is (tags → file name → **Groq AI**, or by **listening** to a 20-second clip with Whisper) and fetches synced lyrics ([docs/LOCAL_MUSIC.md](docs/LOCAL_MUSIC.md)).
+- **Play on your receiver, bit-perfect** — send songs to a DLNA receiver or speaker (Yamaha MusicCast, HEOS, smart TVs…) over Wi-Fi as the untouched original file; the phone's mixer is bypassed and queue, seek and receiver volume all work ([docs/DLNA.md](docs/DLNA.md)).
 - **Audio quality you can see** — Hi-Res / Lossless / bitrate badges for every song, and a Poweramp-style *How it’s playing* sheet: file (codec, bit depth, sample rate, encoder) → decoder → Android mixer → your output (wired, USB DAC, Bluetooth…), with honest verdicts ([docs/AUDIO_QUALITY.md](docs/AUDIO_QUALITY.md)).
 - **Light & dark** — System / Light / Dark appearance; the player always keeps its artwork-tinted dark look.
 - **Real streaming** — Audius full tracks (free, artist-owned), Deezer chart previews, optional Jamendo. Pluggable providers so you can drop in your own source later ([docs/PROVIDERS.md](docs/PROVIDERS.md)).
@@ -72,6 +73,7 @@ See [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
 - [Mobile app internals](docs/MOBILE.md)
 - [Your own music + AI lyrics (Groq)](docs/LOCAL_MUSIC.md)
 - [Audio quality & signal path](docs/AUDIO_QUALITY.md)
+- [Play on Wi-Fi receivers (DLNA)](docs/DLNA.md)
 - [Music providers / plugging in your own catalogue](docs/PROVIDERS.md)
 - [Deployment](docs/DEPLOYMENT.md)
 - [Building the APK](docs/BUILD_APK.md)

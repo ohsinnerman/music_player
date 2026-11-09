@@ -141,12 +141,14 @@ mobile/
   plugins/                 withReleaseSigning config plugin
   modules/aura-audio-route Local Expo module (Kotlin): output device + mixer rate for the signal path
   modules/aura-liquid-glass Local Expo module (Kotlin + AGSL): GPU Liquid Glass lens over the page
+  modules/aura-cast        Local Expo module (Kotlin): SSDP, LAN SOAP client, DLNA media server, FG service
   src/
     app/                   Routes (Expo Router): tabs, player-less detail pages, auth, settings
     api/                   types, fetch client, endpoints, query hooks
     auth/                  auth store, secure token storage
     player/                engine, stores, sheet UI state
     library/               guest library store + unified hooks (local ⇄ server)
+    cast/                  DLNA: UPnP parsing (tested) + session (load, transport, volume, polling)
     local/                 songs imported from the phone: tag reader + clipper (tags/), import,
                            identify / lyrics resolution, store — see LOCAL_MUSIC.md
     settings/              persisted settings (incl. appearance), server URL validation

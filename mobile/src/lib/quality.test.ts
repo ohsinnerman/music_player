@@ -56,6 +56,15 @@ describe('signalPath', () => {
     expect(p.steps).toHaveLength(4);
   });
 
+  it('DLNA receiver: bit-perfect, Android bypassed', () => {
+    const p = signalPath(hires, out('bluetooth'), { name: 'Living Room', model: 'RX-V485' });
+    expect(p.state).toBe('good');
+    expect(p.steps.map((s) => s.title)).toEqual(['File', 'Wi-Fi (DLNA)', 'Decode', 'Output']);
+    expect(p.effective).toBe('24-bit / 96 kHz → Living Room');
+    expect(p.verdict).toMatch(/Bit-perfect/);
+    expect(p.steps[3]!.value).toBe('Living Room · RX-V485');
+  });
+
   it('48 kHz lossless needs no resampling', () => {
     const p = signalPath(file({ codec: 'PCM', lossless: true, bitsPerSample: 16, sampleRate: 48000 }), out('wired'));
     expect(p.state).toBe('good');

@@ -81,9 +81,16 @@ It's autolinked from `mobile/modules/` by Expo. On web, iOS or an APK built befo
 the JS wrapper returns `{ available: false }` and the sheet shows the output step as "unknown" instead of
 crashing.
 
+## Playing on a DLNA receiver
+
+While casting ([DLNA.md](DLNA.md)) the path becomes *File → Wi-Fi (DLNA, original file, no transcoding) →
+decoded by the receiver → its DAC*: Android's decoder, mixer and volume aren't involved, so lossless files
+get a **Bit-perfect** verdict — the one case where Aura says so.
+
 ## What Aura doesn't claim
 
-- No "bit-perfect" label: Android's shared mixer always applies volume.
+- No "bit-perfect" label for playback on the phone: Android's shared mixer always applies volume
+  (DLNA casting is the exception — the phone doesn't touch the audio).
 - The Bluetooth codec in use isn't available to apps, so it's described, not named.
 - No spectral analysis ("is this FLAC really an upscaled MP3?") — badges describe the container.
 

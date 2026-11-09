@@ -9,6 +9,7 @@ import { formatTime } from '@/lib/format';
 import { haptic } from '@/lib/haptics';
 import { assess, khz, type PathStep, signalPath, specOf, type StepState } from '@/lib/quality';
 import { refreshFileInfo } from '@/local/import';
+import { useCast } from '@/cast/session';
 import { useDeviceMusic } from '@/local/store';
 import { usePlayer } from '@/player/store';
 import { GUTTER, fonts, makeStyles, radius, useColors } from '@/theme';
@@ -120,7 +121,8 @@ function AudioQuality({ trackId, initial }: { trackId: string; initial: Track })
 
   const spec = useMemo(() => specOf(track), [track]);
   const a = assess(spec);
-  const path = useMemo(() => signalPath(spec, out.available ? out : null), [spec, out]);
+  const castTo = useCast((s) => s.active);
+  const path = useMemo(() => signalPath(spec, out.available ? out : null, castTo ? { name: castTo.name, model: castTo.model } : null), [spec, out, castTo]);
   const tc = tierColor(a.tier, colors);
   const l = track.local;
 

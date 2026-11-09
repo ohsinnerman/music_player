@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePathname } from 'expo-router';
-import { ChevronDown, Ellipsis, Heart, ListMusic, MicVocal, MoonStar, SkipForward } from 'lucide-react-native';
+import { Cast, ChevronDown, Ellipsis, Heart, ListMusic, MicVocal, MoonStar, SkipForward } from 'lucide-react-native';
 import { memo, useEffect, useState } from 'react';
 import { BackHandler, StyleSheet, View } from 'react-native';
 import { GestureDetector, useCompetingGestures, usePanGesture, useTapGesture } from 'react-native-gesture-handler';
@@ -28,6 +28,8 @@ import { useSettings } from '@/settings/store';
 import { GUTTER, ThemeScope, darkColors, makeStyles, spring, useColors } from '@/theme';
 import { useDockGeometry } from '../dock/geometry';
 import { PreviewBadge } from '../music/Badges';
+import { useCast } from '@/cast/session';
+import { openCastSheet } from '../cast/CastSheet';
 import { openAudioQuality } from '../quality/AudioQualitySheet';
 import { QualityBadge } from '../quality/QualityBadge';
 import { openSleepTimer } from '../sheets/SleepTimer';
@@ -103,6 +105,7 @@ const LikeButton = memo(function LikeButton({ track, size = 44 }: { track: Track
 });
 
 export function PlayerSheet() {
+  const castingTo = useCast((s) => s.active?.name ?? null);
   const colors = useColors();
   const styles = useStyles();
   const g = useDockGeometry();
@@ -376,7 +379,7 @@ export function PlayerSheet() {
                 <IconButton icon={ChevronDown} label="Close player" iconSize={28} onPress={closePlayer} />
                 <View style={styles.headerText}>
                   <Text variant="label" tone="secondary" numberOfLines={1}>
-                    {contextLabel(context?.type)}
+                    {castingTo ? `Playing on ${castingTo}` : contextLabel(context?.type)}
                   </Text>
                   <Text variant="headline" numberOfLines={1} align="center">
                     {context?.title ?? track.album?.title ?? 'Your queue'}
@@ -460,6 +463,15 @@ export function PlayerSheet() {
             <PressableScale onPress={() => openAudioQuality(track)} scaleTo={0.94} accessibilityLabel="Audio quality and signal path" style={{ flexShrink: 1 }}>
               <QualityBadge track={track} />
             </PressableScale>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <IconButton
+              icon={Cast}
+              label={castingTo ? `Playing on ${castingTo}` : 'Play on another device'}
+              active={!!castingTo}
+              color={castingTo ? darkColors.accent : darkColors.textSecondary}
+              onPress={openCastSheet}
+              background={castingTo ? 'rgba(255,90,54,0.16)' : undefined}
+            />
             <IconButton
               icon={ListMusic}
               label="Queue"
@@ -468,6 +480,7 @@ export function PlayerSheet() {
               onPress={() => setPanel('queue')}
               background={panel === 'queue' ? 'rgba(255,255,255,0.12)' : undefined}
             />
+            </View>
           </View>
         </Animated.View>
         </ThemeScope>

@@ -81,3 +81,7 @@ latest APK. The badge and file details still work.
 ### Hi-Res file shows "24-bit → 16-bit" and "96 → 48 kHz"
 That's accurate: Android's shared mixer runs at 48 kHz and the player decodes to 16-bit PCM. It's
 inaudible in practice; a USB DAC gets closest to the original. See [AUDIO_QUALITY.md](AUDIO_QUALITY.md).
+
+### "Play on" doesn't find my receiver
+See [DLNA.md → Troubleshooting](DLNA.md#troubleshooting): same Wi-Fi (not a guest network), receiver on
+or in network standby, no VPN on the phone. Builds before Nov 9 2026 don't have DLNA at all.

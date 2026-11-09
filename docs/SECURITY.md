@@ -10,6 +10,7 @@
 | Server | SSRF, injection via IDs, DoS of free upstreams | allow-listed upstream hosts, strict ID regex, zod validation, body limits, LRU cache + coalescing |
 | Provider API keys | leakage via the app | keys only on the server; stream URLs resolved server-side |
 | Groq API key / AI budget | key leakage, someone burning your quota | key only in server env, never logged or returned; per-IP limits on `/identify*`; per-instance daily AI cap (`AI_DAILY_LIMIT`) |
+| DLNA media server | other devices on the Wi-Fi reading your files | Wi-Fi address only, only songs registered for the receiver, 128-bit random tokens, stopped when casting ends; SOAP client limited to local-network IPs |
 | Files on the phone | over-broad storage access | Storage Access Framework: the user picks files/folders, read-only grants, no storage permission requested |
 
 ## Backend controls

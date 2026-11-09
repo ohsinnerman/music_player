@@ -187,7 +187,63 @@ export function outputName(d: OutputDeviceLike | null | undefined): string {
 
 const worst = (states: StepState[]): StepState => (['loss', 'warn', 'info', 'good'] as const).find((s) => states.includes(s)) ?? 'good';
 
-export function signalPath(s: SourceSpec, out: OutputInfoLike | null): SignalPath {
+/** A DLNA receiver the song is being sent to. */
+export interface CastTarget {
+  name: string;
+  model?: string;
+}
+
+/**
+ * Playing on a DLNA receiver: the untouched file goes over Wi-Fi and the
+ * receiver decodes it, so Android's decoder and mixer are out of the path.
+ */
+function castPath(s: SourceSpec, target: CastTarget): SignalPath {
+  const a = assess(s);
+  const device = target.model && target.model !== target.name ? `${target.name} · ${target.model}` : target.name;
+  const original = s.kind === 'file';
+  const steps: PathStep[] = [
+    {
+      key: 'source',
+      title: s.kind === 'file' ? 'File' : 'Stream',
+      value: `${s.codec} · ${a.spec.replace(`${s.codec} · `, '')}`,
+      detail: s.lossless ? a.blurb : `${a.blurb}${s.approximate ? ' (typical for this source)' : ''}`,
+      state: s.lossless ? 'good' : a.tier === 'low' ? 'loss' : a.tier === 'standard' ? 'warn' : 'info',
+    },
+    {
+      key: 'decode',
+      title: 'Wi-Fi (DLNA)',
+      value: original ? 'Original file · no transcoding' : 'Stream relayed as-is',
+      detail: original
+        ? 'Your phone serves the file byte for byte; the receiver downloads it over your network.'
+        : 'Your phone relays the stream to the receiver without re-encoding it.',
+      state: 'good',
+    },
+    {
+      key: 'mix',
+      title: 'Decode',
+      value: `By ${target.name}`,
+      detail: 'Android’s decoder, mixer, resampler and volume are bypassed — nothing on the phone touches the audio.',
+      state: 'good',
+    },
+    {
+      key: 'output',
+      title: 'Output',
+      value: device,
+      detail: 'The receiver’s own DAC and amplifier play it. Volume here controls the receiver.',
+      state: 'good',
+    },
+  ];
+  const bits = s.lossless ? `${s.bitsPerSample ?? 16}-bit / ` : '';
+  const effective = `${bits}${khz(s.sampleRate)} kHz → ${target.name}`;
+  const verdict = s.lossless
+    ? `Bit-perfect: ${target.name} receives the untouched ${a.spec} file and decodes it itself.`
+    : `${target.name} gets exactly what the ${original ? 'file' : 'stream'} contains (${a.spec}) — nothing lost on the way, nothing to gain back either.`;
+  const tips = s.lossless && (s.channels ?? 2) > 2 ? ['Multichannel FLAC over DLNA depends on the receiver; if it refuses, use a stereo copy.'] : [];
+  return { steps, effective, verdict, state: worst(steps.map((x) => x.state)), tips };
+}
+
+export function signalPath(s: SourceSpec, out: OutputInfoLike | null, cast?: CastTarget | null): SignalPath {
+  if (cast) return castPath(s, cast);
   const a = assess(s);
   const steps: PathStep[] = [];
   const tips: string[] = [];

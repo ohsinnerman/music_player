@@ -8,6 +8,7 @@
 | [SECURITY.md](SECURITY.md) | Threat model and every security control, server and app |
 | [DESIGN.md](DESIGN.md) | Visual language, inspirations, tokens, glass, motion, components |
 | [MOBILE.md](MOBILE.md) | App internals: navigation, state, playback, library sync, performance |
+| [DLNA.md](DLNA.md) | Play on Wi-Fi receivers & speakers (e.g. Yamaha RX-V485): original file over DLNA, Android's mixer bypassed |
 | [AUDIO_QUALITY.md](AUDIO_QUALITY.md) | Quality badges (Hi-Res / Lossless / bitrate) and the Poweramp-style signal path: decode → mixer → output |
 | [LOCAL_MUSIC.md](LOCAL_MUSIC.md) | Your own FLAC/WAV/MP3… files: tag reading, AI song identification (Groq) and lyrics |
 | [PROVIDERS.md](PROVIDERS.md) | Music sources and how to plug in your own catalogue |

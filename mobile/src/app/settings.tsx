@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { endpoints } from '@/api/endpoints';
 import { queryClient } from '@/api/queries';
 import { useAuth } from '@/auth/store';
+import { openCastSheet } from '@/components/cast/CastSheet';
 import { GlassControl } from '@/components/settings/GlassControl';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
@@ -308,6 +309,10 @@ export default function Settings() {
           <Toggle label="Living artwork" hint="Animated, blurred cover behind the player" value={s.livingBackground} onChange={() => s.toggle('livingBackground')} />
           <View style={styles.sep} />
           <Toggle label="Haptics" value={s.haptics} onChange={() => s.toggle('haptics')} />
+        </Group>
+
+        <Group title="Play on Wi-Fi speakers" footer="Sends songs to a DLNA receiver or speaker (Yamaha MusicCast, Denon/Marantz HEOS, Sonos, smart TVs…) as the original file — no transcoding, and Android’s audio mixer is bypassed.">
+          <Row label="Choose a speaker or receiver" onPress={openCastSheet} />
         </Group>
 
         <Group title="Songs on this phone" footer="When a song’s tags and file name aren’t enough, Aura can send a 20-second clip to your server, which asks an AI to recognise it and fetch the lyrics. Clips aren’t stored.">
