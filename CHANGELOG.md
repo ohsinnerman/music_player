@@ -24,8 +24,13 @@ Focus: speed, stability, sound quality, receivers, library.
   - Google Cast: Chromecast, Google TV, Nest speakers, Cast-enabled TVs / receivers and speaker groups, original file
   - Redesigned Spotify-style picker: device that's playing (with song, volume, controls), This phone, Google Cast, DLNA — with TV / speaker / receiver / group icons
   - Yamaha MusicCast remote: power, volume in dB, mute, zones, input, Pure Direct, sound programs, enhancer, sleep
-- Library: album and artist pages for your own music with covers, photos and bios from the web; fake-lossless detector
-- iOS build with native Liquid Glass
+- Library (docs/LOCAL_MUSIC.md)
+  - Albums and Artists shelves and pages for the songs on your phone
+  - Covers for albums without art, artist photos, year, label, genres and Wikipedia summaries (Deezer, MusicBrainz / Cover Art Archive, Wikipedia; AI only disambiguates); cached for offline use
+  - "Is it really lossless?" check: spots FLACs made from MP3/AAC, upsampled Hi-Res and 24-bit padded from 16-bit
+- iOS ([docs/IOS.md](docs/IOS.md))
+  - Apple's Liquid Glass (iOS 26, `UIGlassEffect`) on every glass surface, following the Glass slider; system blur on older iOS
+  - Manual *iOS build* workflow: unsigned IPA from Xcode 26 on macOS 26, attached to the pre-release
 
 ## 1.0.0-alpha — 2026-11-09
 

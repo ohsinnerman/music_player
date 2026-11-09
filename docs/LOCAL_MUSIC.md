@@ -72,12 +72,44 @@ Redeploy after adding them. `GET /v1/config` then reports
 The key stays on the server: the app never sees it, it isn't logged, and errors from
 Groq are mapped to generic messages (`ai_unavailable`, `ai_rate_limited`).
 
+## Albums & artists
+
+*On this phone* shows **Albums** and **Artists** shelves above the songs. Album pages list the songs in
+track order with the year, total length and the best quality on the album; artist pages show their
+albums and songs. Compilations (no artist on more than half the tracks) are filed under *Various
+Artists*.
+
+**Details from the web** (the image button on *On this phone*, or automatically when a page opens):
+cover art for albums that have none, artist photos, release year, label, genres and a short summary
+with a link to the full Wikipedia article. Sources: Deezer, MusicBrainz / Cover Art Archive,
+Wikipedia — facts are never written by the AI; it only picks the right Wikipedia article when a name
+is ambiguous ("Discovery" the album, not the ship). Results are cached on the phone for 30 days, so
+pages work offline. Lyrics for every song: the ✨ button (see above).
+
+## Is it really lossless?
+
+The Audio quality sheet of a lossless file has a **Check** button. Aura decodes four short excerpts,
+averages their spectrum and looks for what lossy encoders leave behind:
+
+| Verdict | What it means |
+|---|---|
+| Looks genuine | Music up to ~21–22 kHz (CD) or above 24 kHz (Hi-Res) |
+| Probably from a lossy file | A brick-wall cut-off below ~19.6 kHz — e.g. 17 kHz is typical of a 128 kbps MP3 |
+| Possibly from a lossy file | A sharp cut-off at ~19.6–21 kHz (256–320 kbps encodes, or a filtered master) |
+| Upsampled | A 88.2–192 kHz file with nothing above ~22 kHz: made from a CD-quality source |
+| Padded 16-bit | A "24-bit" file whose lowest 8 bits are always zero |
+
+It's a strong hint, not proof: some genuine recordings are filtered or have little treble. Tested
+against real LAME / AAC encodes (`modules/aura-audio-route/test/spectrum/run.sh`).
+
 ## Privacy
 
 - Tags, file names and durations are sent to your server for identification.
 - Audio clips are only sent when listening is enabled, are forwarded to Groq for
   transcription, and are not stored by Aura's server.
 - LLM output is validated (zod) and only ever used as a lyrics search query.
+- For album / artist details only the album title and artist name are sent.
+- The lossless check runs entirely on the phone.
 
 ## Quality
 

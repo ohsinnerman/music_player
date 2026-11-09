@@ -1,4 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
+import { LocalAlbumPage } from '@/components/library/LocalPages';
 import { ListPlus } from 'lucide-react-native';
 import { View } from 'react-native';
 import { useAlbum } from '@/api/queries';
@@ -10,7 +11,12 @@ import { albumMeta, artistNames } from '@/lib/format';
 import { openArtist } from '@/lib/nav';
 import { GUTTER, useColors } from '@/theme';
 
-export default function AlbumScreen() {
+export default function AlbumScreenRoute() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  return id?.startsWith('local-album:') ? <LocalAlbumPage id={id} /> : <AlbumScreen />;
+}
+
+function AlbumScreen() {
   const colors = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, isLoading, error, refetch } = useAlbum(id);

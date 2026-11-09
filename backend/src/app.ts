@@ -13,6 +13,7 @@ import { createTokenService } from './security/tokens.js';
 import { createCatalogService } from './services/catalog.js';
 import { createGroq } from './services/groq.js';
 import { createAutoEqService } from './services/autoeq.js';
+import { createEnrichService } from './services/enrich.js';
 import { createIdentifyService } from './services/identify.js';
 import { createLyricsService } from './services/lyrics.js';
 import { createMemoryStore } from './store/memory.js';
@@ -58,16 +59,31 @@ export function buildApp({ env, store, logger, fetchImpl }: AppDeps): BuiltApp {
     ? createGroq({ apiKey: env.GROQ_API_KEY, base: env.GROQ_API_BASE, model: env.GROQ_MODEL, whisperModel: env.GROQ_WHISPER_MODEL, fetchImpl })
     : null;
   const budget = { day: '', used: 0 };
+  const allowAi = () => {
+    const day = new Date().toISOString().slice(0, 10);
+    if (budget.day !== day) Object.assign(budget, { day, used: 0 });
+    if (budget.used >= env.AI_DAILY_LIMIT) return false;
+    budget.used++;
+    return true;
+  };
   const identify = createIdentifyService({
     lyrics,
     groq,
-    allowAi: () => {
-      const day = new Date().toISOString().slice(0, 10);
-      if (budget.day !== day) Object.assign(budget, { day, used: 0 });
-      if (budget.used >= env.AI_DAILY_LIMIT) return false;
-      budget.used++;
-      return true;
-    },
+    allowAi,
+  });
+
+  const host = (u: string) => new URL(u).hostname;
+  const enrich = createEnrichService({
+    http: createHttpClient({
+      timeoutMs: env.UPSTREAM_TIMEOUT_MS,
+      userAgent: `Aura/1.1 (+https://github.com/ohsinnerman/music_player)`,
+      allowedHosts: [host(env.DEEZER_API_BASE), host(env.MUSICBRAINZ_API_BASE), host(env.WIKIPEDIA_BASE)],
+      fetchImpl,
+    }),
+    bases: { deezer: env.DEEZER_API_BASE.replace(/\/$/, ''), musicbrainz: env.MUSICBRAINZ_API_BASE.replace(/\/$/, ''), coverart: env.COVERART_BASE.replace(/\/$/, ''), wikipedia: env.WIKIPEDIA_BASE.replace(/\/$/, '') },
+    cache,
+    groq,
+    allowAi,
   });
 
   const app = express();
@@ -111,7 +127,7 @@ export function buildApp({ env, store, logger, fetchImpl }: AppDeps): BuiltApp {
   app.get('/', (_req, res) => {
     res.json({ name: 'Aura Music API', docs: 'https://github.com/ohsinnerman/music_player/tree/main/docs', health: '/v1/health' });
   });
-  app.use('/v1', createRoutes({ env, store: db, tokens, catalog, lyrics, identify, autoeq }));
+  app.use('/v1', createRoutes({ env, store: db, tokens, catalog, lyrics, identify, autoeq, enrich }));
   app.use(notFoundHandler);
   app.use(errorHandler(log));
 

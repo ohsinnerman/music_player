@@ -2,6 +2,8 @@ import { api, qs } from './client';
 import type { HeadphoneProfile } from '@/audio/eq';
 import type {
   Album,
+  AlbumInfo,
+  ArtistInfo,
   ArtistDetail,
   AuthPayload,
   Genre,
@@ -38,6 +40,10 @@ export const endpoints = {
   playlist: (id: string) => api.get<Playlist>(`/playlists/${enc(id)}`),
   radio: (id: string) => api.get<Track[]>(`/tracks/${enc(id)}/radio`),
   lyrics: (trackId: string, signal?: AbortSignal) => api.get<Lyrics>(`/lyrics${qs({ trackId })}`, signal),
+
+  // Details for songs on the phone
+  albumInfo: (artist: string, album: string, signal?: AbortSignal) => api.get<AlbumInfo>(`/enrich/album${qs({ artist, album })}`, signal),
+  artistInfo: (name: string, signal?: AbortSignal) => api.get<ArtistInfo>(`/enrich/artist${qs({ name })}`, signal),
 
   // Headphone EQ presets (AutoEq)
   eqSearch: (q: string, signal?: AbortSignal) => api.get<Omit<HeadphoneProfile, 'preampDb' | 'filters'>[]>(`/eq/search${qs({ q })}`, signal),

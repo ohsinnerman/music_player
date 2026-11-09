@@ -60,6 +60,8 @@ export interface LocalFileInfo {
   /** Encoder / writer ("LAME3.100", "reference libFLAC 1.4.3"). */
   encoder?: string;
   vbr?: boolean;
+  /** Result of the fake-lossless check, if it was run. */
+  spectrum?: { verdict: string; cutoffHz: number; likelySource?: string | null; padded16?: boolean | null; at: string };
   /** ReplayGain tags in the file (dB / linear peak). */
   replayGain?: { trackGain?: number; trackPeak?: number; albumGain?: number; albumPeak?: number };
   /** Raw tags as read from the file (before any identification). */
@@ -213,4 +215,30 @@ export interface PlayContext {
   type: 'album' | 'playlist' | 'artist' | 'genre' | 'liked' | 'search' | 'home' | 'history' | 'radio' | 'queue' | 'local';
   id?: string;
   title: string;
+}
+
+/** Web details for an album on the phone (GET /v1/enrich/album). */
+export interface AlbumInfo {
+  title: string;
+  artist: string;
+  cover?: string;
+  year?: string;
+  releaseDate?: string;
+  label?: string;
+  genres: string[];
+  trackCount?: number;
+  summary?: string;
+  summarySource?: { name: string; url: string };
+  sources: string[];
+}
+
+/** Web details for an artist on the phone (GET /v1/enrich/artist). */
+export interface ArtistInfo {
+  name: string;
+  image?: string;
+  fans?: number;
+  genres: string[];
+  summary?: string;
+  summarySource?: { name: string; url: string };
+  sources: string[];
 }

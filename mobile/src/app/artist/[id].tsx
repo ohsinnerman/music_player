@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
+import { LocalArtistPage } from '@/components/library/LocalPages';
 import { BadgeCheck, Radio, Shuffle } from 'lucide-react-native';
 import { useState } from 'react';
 import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -44,7 +45,12 @@ function AlbumShelf({ title, albums }: { title: string; albums: Album[] }) {
   );
 }
 
-export default function ArtistScreen() {
+export default function ArtistScreenRoute() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  return id?.startsWith('local-artist:') ? <LocalArtistPage id={id} /> : <ArtistScreen />;
+}
+
+function ArtistScreen() {
   const colors = useColors();
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();

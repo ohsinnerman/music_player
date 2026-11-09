@@ -1,10 +1,12 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { AudioWaveform, FilePlus2, FolderOpen, FolderPlus, Smartphone, Sparkles } from 'lucide-react-native';
+import { AudioWaveform, FilePlus2, FolderOpen, FolderPlus, ImageDown, Smartphone, Sparkles } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import type { Track } from '@/api/types';
 import { CollectionScreen } from '@/components/music/CollectionScreen';
+import { MediaCard } from '@/components/music/MediaCard';
+import { SectionHeader } from '@/components/music/SectionHeader';
 import { Chip } from '@/components/ui/Chip';
 import { IconButton } from '@/components/ui/IconButton';
 import { EmptyState } from '@/components/ui/States';
@@ -13,6 +15,8 @@ import { toast } from '@/components/ui/Toast';
 import { assess, specOf } from '@/lib/quality';
 import { findAllLyrics } from '@/local/identify';
 import { importFiles, importFolder } from '@/local/import';
+import { albumCard, artistCard, enrichAll, useLibraryInfo, useLocalLibrary } from '@/local/library';
+import { openAlbum, openArtist } from '@/lib/nav';
 import { type ImportProgress, useDeviceMusic } from '@/local/store';
 import { GUTTER, makeStyles, radius, useColors } from '@/theme';
 
@@ -69,6 +73,10 @@ export default function DeviceMusicScreen() {
   const tracks = useDeviceMusic((s) => s.tracks);
   const importing = useDeviceMusic((s) => s.importing);
   const batch = useDeviceMusic((s) => s.lyricsBatch);
+  const { albums, artists } = useLocalLibrary();
+  const albumInfo = useLibraryInfo((s) => s.albums);
+  const artistInfo = useLibraryInfo((s) => s.artists);
+  const infoBatch = useLibraryInfo((s) => s.batch);
   const [sort, setSort] = useState<Sort>('recent');
   const [qf, setQf] = useState<QualityFilter>('all');
   const tiers = useMemo(() => new Map(tracks.map((t) => [t.id, assess(specOf(t)).tier])), [tracks]);
@@ -97,6 +105,17 @@ export default function DeviceMusicScreen() {
     if (r.total) toast(`Found lyrics for ${r.found} of ${r.total} songs`, r.found ? 'success' : 'info');
   };
 
+  const getDetails = async () => {
+    if (infoBatch) {
+      void enrichAll(); // second tap cancels
+      toast('Stopped fetching details', 'info');
+      return;
+    }
+    toast('Getting covers, photos and details from the web…', 'info');
+    const r = await enrichAll();
+    if (r.albums) toast(r.covers ? `Found ${r.covers} missing ${r.covers === 1 ? 'cover' : 'covers'}` : 'Album and artist details updated', 'success');
+  };
+
   return (
     <CollectionScreen
       title="On this phone"
@@ -113,6 +132,7 @@ export default function DeviceMusicScreen() {
         <>
           <IconButton icon={FilePlus2} label="Add songs" background={colors.fillStrong} onPress={() => void importFiles()} disabled={!!importing} />
           <IconButton icon={FolderPlus} label="Add a folder" background={colors.fillStrong} onPress={() => void importFolder()} disabled={!!importing} />
+          {albums.length || artists.length ? <IconButton icon={ImageDown} label={infoBatch ? 'Stop fetching details' : 'Get covers and details from the web'} active={!!infoBatch} background={colors.fillStrong} onPress={getDetails} /> : null}
           {tracks.length ? <IconButton icon={Sparkles} label={batch ? 'Stop finding lyrics' : 'Find lyrics for all songs'} active={!!batch} background={colors.fillStrong} onPress={findAll} /> : null}
         </>
       }
@@ -120,6 +140,36 @@ export default function DeviceMusicScreen() {
         <View style={{ alignSelf: 'stretch' }}>
           {importing ? <Progress p={importing} verb="Reading" /> : null}
           {batch && !importing ? <Progress p={batch} verb="Finding lyrics" /> : null}
+          {infoBatch && !importing ? <Progress p={infoBatch} verb="Details for" /> : null}
+          {albums.length > 1 ? (
+            <View style={{ marginBottom: 10 }}>
+              <SectionHeader title="Albums" />
+              <FlatList
+                data={albums}
+                horizontal
+                keyExtractor={(a) => a.id}
+                showsHorizontalScrollIndicator={false}
+                initialNumToRender={6}
+                contentContainerStyle={{ paddingHorizontal: GUTTER, gap: 14 }}
+                renderItem={({ item }) => <MediaCard item={albumCard(item, albumInfo[item.id]?.data)} size={132} onPress={() => openAlbum(item.id)} />}
+              />
+            </View>
+          ) : null}
+          {artists.length > 1 ? (
+            <View style={{ marginBottom: 10 }}>
+              <SectionHeader title="Artists" />
+              <FlatList
+                data={artists}
+                horizontal
+                keyExtractor={(a) => a.id}
+                showsHorizontalScrollIndicator={false}
+                initialNumToRender={6}
+                contentContainerStyle={{ paddingHorizontal: GUTTER, gap: 14 }}
+                renderItem={({ item }) => <MediaCard item={artistCard(item, artistInfo[item.id]?.data)} size={112} onPress={() => openArtist(item.id)} />}
+              />
+            </View>
+          ) : null}
+          {albums.length > 1 || artists.length > 1 ? <SectionHeader title="Songs" /> : null}
           {tracks.length ? (
             <View style={styles.summary}>
               <AudioWaveform size={15} color={colors.textTertiary} />

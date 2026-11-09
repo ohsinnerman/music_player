@@ -16,6 +16,7 @@ import { GUTTER, fonts, makeStyles, radius, useColors } from '@/theme';
 import { openSheet } from '../ui/Sheet';
 import { Text } from '../ui/Text';
 import { HIRES_GOLD, tierColor } from './QualityBadge';
+import { SpectrumCheck } from './SpectrumCheck';
 
 /** Open the "Audio quality" sheet for a song (what it is, and how this phone plays it). */
 export function openAudioQuality(track: Track) {
@@ -159,6 +160,8 @@ function AudioQuality({ trackId, initial }: { trackId: string; initial: Track })
         {a.blurb}
         {spec.approximate ? ' Numbers are typical for this source, not measured from this exact stream.' : ''}
       </Text>
+
+      {l && spec.lossless && !missing ? <SpectrumCheck track={track} /> : null}
 
       {missing ? (
         <View style={[styles.verdict, { borderColor: colors.danger }]}>

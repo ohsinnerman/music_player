@@ -1,0 +1,112 @@
+name: iOS build
+
+# Unsigned iOS build of the mobile app (Xcode 26, so iOS 26 Liquid Glass is in).
+# Manual only: macOS runners use 10× the Actions minutes of Linux on private repos.
+# Run it from the Actions tab ("Run workflow").
+#
+# Output: aura-<label>-<sha>-unsigned.ipa — install with a re-signing tool
+# (Sideloadly, AltStore) using your Apple ID, or sign it in Xcode. A signed
+# TestFlight / App Store build needs your Apple Developer account; see docs/IOS.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: 'Backend URL to bake in (leave empty to use the API_URL variable)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aura-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build unsigned IPA
+    runs-on: macos-26
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      EXPO_PUBLIC_API_URL: ${{ inputs.api_url || vars.API_URL }}
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Select Xcode 26
+        run: |
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$XC" ]; then sudo xcode-select -s "$XC"; fi
+          xcodebuild -version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck & unit tests
+        run: |
+          npx tsc --noEmit
+          npm test
+
+      - name: Generate native iOS project
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Build (Release, device, unsigned)
+        run: |
+          WS=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WS" .xcworkspace)
+          set -o pipefail
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Aura.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            archive | tee "$RUNNER_TEMP/xcodebuild.log" | grep -E "^(\*\*|error|warning: .*deprecated)" || true
+          test -d "$RUNNER_TEMP/Aura.xcarchive/Products/Applications"
+
+      - name: Package IPA
+        id: ipa
+        run: |
+          SHORT=$(git rev-parse --short HEAD)
+          LABEL=$(node -p "require('./version.json').label")
+          OUT="aura-${LABEL}-${SHORT}-unsigned.ipa"
+          cd "$RUNNER_TEMP"
+          rm -rf Payload && mkdir Payload
+          cp -R Aura.xcarchive/Products/Applications/*.app Payload/
+          zip -qry "$GITHUB_WORKSPACE/$OUT" Payload
+          echo "file=$OUT" >> "$GITHUB_OUTPUT"
+          echo "label=$LABEL" >> "$GITHUB_OUTPUT"
+          ls -lh "$GITHUB_WORKSPACE/$OUT"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: aura-ios
+          path: |
+            ${{ steps.ipa.outputs.file }}
+          retention-days: 30
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: ${{ runner.temp }}/xcodebuild.log
+
+      - name: Publish to the versioned pre-release (v<label>)
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ipa.outputs.label }}
+          name: Aura ${{ steps.ipa.outputs.label }}
+          prerelease: true
+          make_latest: false
+          files: ${{ steps.ipa.outputs.file }}

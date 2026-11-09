@@ -1,4 +1,5 @@
 import { BlurView } from 'expo-blur';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode, memo } from 'react';
 import { Platform, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
@@ -9,6 +10,15 @@ import { usePlayerUi } from '@/player/ui';
 import { useSettings } from '@/settings/store';
 import { useColors } from '@/theme';
 import { LiquidGlassNativeView } from '../../../modules/aura-liquid-glass';
+
+/** iOS 26+: Apple's own Liquid Glass (UIGlassEffect) — real refraction, highlights and motion. */
+const IOS_GLASS = Platform.OS === 'ios' && (() => {
+  try {
+    return isLiquidGlassAvailable();
+  } catch {
+    return false;
+  }
+})();
 
 export interface GlassProps {
   children?: ReactNode;
@@ -60,7 +70,8 @@ export const Glass = memo(function Glass({
   const canBlur = !android || (variant === 'overlay' && !!target && !playerOpen);
   // Android 12+: our GPU lens (blur → AGSL refraction/dispersion/specular on 13+) over the
   // same recorded page content expo-blur uses. Otherwise expo-blur, else a frosted fill.
-  const nativeLens = android && !!LiquidGlassNativeView && canBlur && level < BLUR_OFF_AT;
+  const appleGlass = IOS_GLASS && level < BLUR_OFF_AT;
+  const nativeLens = appleGlass || (android && !!LiquidGlassNativeView && canBlur && level < BLUR_OFF_AT);
   const realBlur = canBlur && level < BLUR_OFF_AT;
   const optics = nativeLens ? lens(level, intensity) : null;
   const dark = colors.scheme === 'dark';
@@ -73,7 +84,16 @@ export const Glass = memo(function Glass({
 
   return (
     <View pointerEvents={pointerEvents} style={[{ borderRadius: radius, overflow: 'hidden' }, style]}>
-      {nativeLens && LiquidGlassNativeView && optics ? (
+      {appleGlass ? (
+        <GlassView
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { borderRadius: radius }]}
+          // Clear glass at the liquid end of the slider, Apple's regular (frosted-ish) glass past the middle.
+          glassEffectStyle={{ style: level < 0.35 ? 'clear' : 'regular', animate: true }}
+          colorScheme={dark ? 'dark' : 'light'}
+          tintColor={tint}
+        />
+      ) : nativeLens && LiquidGlassNativeView && optics ? (
         <LiquidGlassNativeView
           pointerEvents="none"
           style={StyleSheet.absoluteFill}
@@ -95,8 +115,9 @@ export const Glass = memo(function Glass({
       ) : null}
       {/* material: solid colour whose opacity sweeps liquid → frosted → opaque */}
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: colors.glassBase }, tintStyle]} />
-      {tint ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: tint }]} /> : null}
-      {rim ? (
+      {tint && !appleGlass ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: tint }]} /> : null}
+      {/* Apple's glass draws its own rim, highlights and sheen. */}
+      {rim && !appleGlass ? (
         <>
           {/* light bouncing off the lower edge: the "liquid" look, gone by frosted */}
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, glowStyle]}>

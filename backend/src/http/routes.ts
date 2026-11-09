@@ -10,6 +10,7 @@ import type { TokenService } from '../security/tokens.js';
 import type { CatalogService } from '../services/catalog.js';
 import { MIME_EXT, type IdentifyService } from '../services/identify.js';
 import type { AutoEqService } from '../services/autoeq.js';
+import type { EnrichService } from '../services/enrich.js';
 import type { LyricsService } from '../services/lyrics.js';
 import type { Store, UserPlaylistRecord, UserRecord } from '../store/types.js';
 import { ah, authMiddleware, limiter, parse } from './middleware.js';
@@ -49,9 +50,10 @@ export interface RouteDeps {
   lyrics: LyricsService;
   identify: IdentifyService;
   autoeq: AutoEqService;
+  enrich: EnrichService;
 }
 
-export function createRoutes({ env, store, tokens, catalog, lyrics, identify, autoeq }: RouteDeps): Router {
+export function createRoutes({ env, store, tokens, catalog, lyrics, identify, autoeq, enrich }: RouteDeps): Router {
   const r = Router();
   const { requireAuth } = authMiddleware(tokens, store);
 
@@ -239,6 +241,27 @@ export function createRoutes({ env, store, tokens, catalog, lyrics, identify, au
       } else {
         res.json({ data: await lyrics.lookup({ title: q.title, artist: q.artist, album: q.album, durationSec: q.duration }) });
       }
+    }),
+  );
+
+  // ───────────── Album / artist details for songs on the phone ─────────────
+  const name = z.string().trim().min(1).max(200);
+  r.get(
+    '/enrich/album',
+    searchLimiter,
+    cachePublic(86400),
+    ah(async (req, res) => {
+      const q = parse(z.object({ artist: name, album: name }), req.query);
+      res.json({ data: await enrich.album(q.artist, q.album) });
+    }),
+  );
+  r.get(
+    '/enrich/artist',
+    searchLimiter,
+    cachePublic(86400),
+    ah(async (req, res) => {
+      const q = parse(z.object({ name }), req.query);
+      res.json({ data: await enrich.artist(q.name) });
     }),
   );
 

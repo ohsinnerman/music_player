@@ -28,12 +28,16 @@ jobs:
           echo "full=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA" --jq .sha)" >> "$GITHUB_OUTPUT"
           gh release download latest -R "$GITHUB_REPOSITORY" -p "aura-1.0.0-$SHA.apk"
           echo "exists=false" >> "$GITHUB_OUTPUT"
+      - name: Tag 9812ede as v1.0.0-alpha
+        if: steps.apk.outputs.exists == 'false'
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/git/refs/tags/v1.0.0-alpha" >/dev/null 2>&1 || \
+            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref=refs/tags/v1.0.0-alpha -f sha="${{ steps.apk.outputs.full }}"
       - name: Publish v1.0.0-alpha
         if: steps.apk.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.0-alpha
-          target_commitish: ${{ steps.apk.outputs.full }}
           name: Aura 1.0.0-alpha
           prerelease: true
           make_latest: false

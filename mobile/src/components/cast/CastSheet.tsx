@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Boxes, Cast, Check, RadioReceiver, RefreshCw, SlidersHorizontal, Smartphone, Speaker, Tv, Volume1, Volume2, Wifi } from 'lucide-react-native';
 import { memo, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { GestureDetector, useCompetingGestures, usePanGesture, useTapGesture } from 'react-native-gesture-handler';
 import Animated, { Easing, FadeIn, cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -324,7 +324,7 @@ function CastSheet({ close }: { close: () => void }) {
 
       {!castAvailable ? (
         <Text variant="callout" tone="secondary" style={styles.note}>
-          Playing on TVs, speakers and receivers needs the latest Android app.
+          {Platform.OS === 'ios' ? 'Playing on TVs, speakers and receivers is in the Android app for now. Use AirPlay from Control Center to play on Apple TV / AirPlay speakers.' : 'Playing on TVs, speakers and receivers needs the latest Android app.'}
         </Text>
       ) : null}
 

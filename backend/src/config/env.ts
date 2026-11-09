@@ -51,6 +51,10 @@ const schema = z.object({
   JAMENDO_API_BASE: z.url().default('https://api.jamendo.com/v3.0'),
   JAMENDO_CLIENT_ID: z.string().optional(),
   LRCLIB_API_BASE: z.url().default('https://lrclib.net/api'),
+  /** Album / artist details for songs on the phone. */
+  MUSICBRAINZ_API_BASE: z.url().default('https://musicbrainz.org'),
+  COVERART_BASE: z.url().default('https://coverartarchive.org'),
+  WIKIPEDIA_BASE: z.url().default('https://en.wikipedia.org'),
   /** AutoEq headphone presets (raw GitHub of jaakkopasanen/AutoEq). */
   AUTOEQ_BASE: z.url().default('https://raw.githubusercontent.com/jaakkopasanen/AutoEq/master'),
 

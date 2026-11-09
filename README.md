@@ -75,6 +75,7 @@ See [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
 - [Your own music + AI lyrics (Groq)](docs/LOCAL_MUSIC.md)
 - [Audio quality & signal path](docs/AUDIO_QUALITY.md)
 - [Sound: EQ, ReplayGain, 24-bit, bit-perfect USB](docs/SOUND.md)
+- [iOS build & Liquid Glass](docs/IOS.md)
 - [Play on TVs, speakers & receivers (DLNA, Google Cast, MusicCast)](docs/DLNA.md)
 - [Music providers / plugging in your own catalogue](docs/PROVIDERS.md)
 - [Deployment](docs/DEPLOYMENT.md)

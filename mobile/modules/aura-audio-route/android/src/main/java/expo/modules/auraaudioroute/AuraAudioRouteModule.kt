@@ -47,6 +47,18 @@ class AuraAudioRouteModule : Module() {
       AuraDsp.update(parseSound(JSONObject(json)))
     }
 
+    /** Is this "lossless" file really lossless? Decodes a few excerpts and looks at the spectrum. */
+    AsyncFunction("analyzeSpectrum") { uri: String, promise: expo.modules.kotlin.Promise ->
+      val ctx = appContext.reactContext ?: return@AsyncFunction promise.reject("ERR_CONTEXT", "No context", null)
+      Thread {
+        try {
+          promise.resolve(SpectrumScan.analyze(ctx, uri))
+        } catch (e: Exception) {
+          promise.reject("ERR_SPECTRUM", e.message ?: "Couldn't analyse this file", e)
+        }
+      }.apply { name = "aura-spectrum" }.start()
+    }
+
     /** What the player's output stage is doing right now. */
     Function("getDspState") {
       AuraDsp.state + mapOf("bitPerfect" to AuraDsp.bitPerfect, "hooked" to AuraDsp.hooked)

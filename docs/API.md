@@ -56,6 +56,20 @@ StreamInfo { url, kind:'full'|'preview', expiresAt, mimeType? }
 AI steps need `GROQ_API_KEY` on the server; without it `/identify` still matches tags and file names.
 Errors: `ai_unavailable` (503/502), `ai_rate_limited` (429), `payload_too_large` (413). See [LOCAL_MUSIC.md](LOCAL_MUSIC.md).
 
+## Details for songs on the phone
+
+| Method | Path | Query | Returns |
+|---|---|---|---|
+| GET | `/enrich/album` | `artist`, `album` | `AlbumInfo { title, artist, cover?, year?, releaseDate?, label?, genres[], trackCount?, summary?, summarySource?, sources[] }` — Deezer → MusicBrainz / Cover Art Archive → Wikipedia (AI only picks the article when ambiguous). Cached 7 days |
+| GET | `/enrich/artist` | `name` | `ArtistInfo { name, image?, fans?, genres[], summary?, summarySource?, sources[] }` |
+
+## Headphone EQ (AutoEq)
+
+| Method | Path | Query | Returns |
+|---|---|---|---|
+| GET | `/eq/search` | `q` (≥ 2 chars) | Up to 25 `{ name, source, rig?, path }`, oratory1990 first |
+| GET | `/eq/profile` | `path` (must be in AutoEq's index) | `{ name, source, rig?, path, preampDb, filters: [{ type: 'PK'|'LSC'|'HSC', fc, gainDb, q }] }` |
+
 ## Auth
 
 | Method | Path | Body | Returns |

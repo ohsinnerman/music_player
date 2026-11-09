@@ -53,7 +53,22 @@ export interface DspState {
   bitPerfect?: { state: 'off' | 'no-usb' | 'bit-perfect' | 'native-rate' | 'unsupported-rate'; sampleRate?: number; device?: string | null; encoding?: string | null };
 }
 
+/** Result of the fake-lossless check. */
+export interface SpectrumResult {
+  verdict: 'genuine' | 'lossy' | 'suspect' | 'upsampled' | 'unsure' | 'silent';
+  cutoffHz: number;
+  sampleRate: number;
+  edgeDb: number;
+  sharp: boolean;
+  padded16: boolean | null;
+  likelySource: string | null;
+  /** dB relative to the loudest band, every `bandHz` Hz from 0 to Nyquist. */
+  bands: number[];
+  bandHz: number;
+}
+
 interface NativeModule {
+  analyzeSpectrum?(uri: string): Promise<SpectrumResult>;
   getOutputInfo(): OutputInfo;
   setSoundConfig?(json: string): void;
   getDspState?(): DspState;
@@ -119,3 +134,6 @@ export function getDspState(): DspState {
     return {};
   }
 }
+
+/** Fake-lossless check (Android). Null where unsupported. */
+export const analyzeSpectrum = native?.analyzeSpectrum ? (uri: string) => native.analyzeSpectrum!(uri) : null;
