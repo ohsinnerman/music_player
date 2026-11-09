@@ -37,6 +37,11 @@ Stack and its ref is shared through `ChromeProvider`.
 | `player/store.ts` | queue snapshot in AsyncStorage | queue, index, context, repeat, shuffle, playing/buffering; `clock` shared values |
 | `library/store.ts` | AsyncStorage | guest likes, playlists, local history |
 | TanStack Query | memory | all server data (home, search, albums, `me/*`) |
+| `lib/diagnostics.ts` | AsyncStorage (last 80 entries) | errors and playback failures, shared from Settings → Diagnostics |
+
+All persisted stores write through `lib/storage.ts`, which coalesces writes: the latest state is kept
+in memory and serialised once things go quiet (700 ms) or immediately when the app is backgrounded,
+instead of stringifying the whole store on every change.
 
 ### Library: guest ⇄ account
 
@@ -99,6 +104,18 @@ See [ARCHITECTURE.md → The player engine](ARCHITECTURE.md#the-player-engine-mo
   when the player collapses. The title marquee only animates while visible.
 - Heavy panels (lyrics) mount a frame after the panel animation starts.
 - Fonts: only the five weights used are bundled.
+- Icons: `babel/lucide-direct-imports.js` rewrites `import { Play } from 'lucide-react-native'` to the
+  single icon file, so only the ~80 icons used are bundled instead of all ~2 000 (JS bundle 6.4 → 4.7 MB,
+  faster cold start).
+- Folder imports walk one folder per tick and resolve real file names in batches, so the UI keeps
+  moving on folders with thousands of songs.
+
+### Crashes and errors
+
+`_layout.tsx` exports an `ErrorBoundary` (a "Something went wrong · Try again" screen instead of a
+white screen), and `installGlobalHandlers()` records uncaught errors and unhandled promise rejections.
+Error toasts and playback failures (Media3 error code, file format) go to the same log. **Settings →
+Diagnostics → Share** sends it with the app version and server, without tokens or personal data.
 
 ## Configuration
 

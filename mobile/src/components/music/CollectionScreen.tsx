@@ -157,6 +157,8 @@ export function CollectionScreen(props: CollectionScreenProps) {
         ListFooterComponent={<View style={{ paddingBottom: g.contentInset }}>{footer}</View>}
         showsVerticalScrollIndicator={false}
         initialNumToRender={14}
+        maxToRenderPerBatch={12}
+        updateCellsBatchingPeriod={40}
         windowSize={9}
         removeClippedSubviews
       />

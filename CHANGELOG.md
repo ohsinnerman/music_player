@@ -5,6 +5,14 @@
 Focus: speed, stability, sound quality, receivers, library.
 
 - Optimization and bug-fix pass
+  - JS bundle 27% smaller (6.4 → 4.7 MB): icons are imported one by one instead of the whole set
+  - Saving settings / library no longer re-writes everything on every change (writes are batched)
+  - Long lists render in smaller batches; folder imports keep the UI responsive and show "Found N songs…"
+  - Fixed: songs imported from files or folders were named after the Android document id
+    ("primary%3AMusic%2F…" or "audio%3A1234"), which hurt title guessing and identification.
+    Real file names are now used, and existing songs are repaired on first launch
+  - Crash screen with "Try again" instead of a blank app; Settings → Diagnostics shows recent errors and
+    playback failures and can share them
 - Sound: 24-bit (float) playback + 5.1 → stereo downmix, bit-perfect USB DAC mode (Android 14+), ReplayGain, parametric EQ with AutoEQ headphone presets
 - Receivers: Yamaha MusicCast control, Google Cast (TVs and speakers) in the Play-on picker
 - Library: album and artist pages for your own music with covers, photos and bios from the web; fake-lossless detector

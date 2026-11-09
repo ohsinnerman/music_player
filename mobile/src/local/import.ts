@@ -1,5 +1,6 @@
 import { Directory, File } from 'expo-file-system';
 import { Platform } from 'react-native';
+import { displayNames, nameFromUri } from '../../modules/aura-audio-route';
 import type { Lyrics, Track } from '@/api/types';
 import { toast } from '@/components/ui/Toast';
 import { usePlayer } from '@/player/store';
@@ -31,7 +32,30 @@ const slug = (s: string) =>
     .replace(/^-|-$/g, '')
     .slice(0, 60) || 'unknown';
 
-const isAudio = (f: File) => AUDIO_EXT.test(f.name) || (f.type ?? '').startsWith('audio/');
+/** A file plus its real display name. */
+type Picked = { file: File; name: string };
+
+const HAS_EXT = /\.[a-z0-9]{2,5}$/i;
+
+/**
+ * Real file names. expo-file-system's `File.name` is the last segment of the
+ * URI, which for Android document URIs is an encoded id ("primary%3AMusic%2FSong.flac"
+ * or just "audio%3A1234"). Decoding the id gives the name for folder imports;
+ * anything still without an extension is asked of the content resolver.
+ */
+export async function resolveNames(uris: string[]): Promise<string[]> {
+  const out = uris.map(nameFromUri);
+  const ask = out.map((n, i) => (HAS_EXT.test(n) ? -1 : i)).filter((i) => i >= 0);
+  if (ask.length) {
+    const names = await displayNames(ask.map((i) => uris[i]!));
+    ask.forEach((i, k) => {
+      if (names[k]) out[i] = names[k]!;
+    });
+  }
+  return out;
+}
+
+const isAudio = (p: Picked) => AUDIO_EXT.test(p.name) || (p.file.type ?? '').startsWith('audio/');
 
 /** Lyrics carried inside the file (USLT / SYLT / LYRICS / ©lyr). */
 export function embeddedLyrics(tags: TagResult): Lyrics | null {
@@ -46,7 +70,7 @@ export function embeddedLyrics(tags: TagResult): Lyrics | null {
   return text.length >= 20 ? { synced: null, plain: text, instrumental: false, source: 'embedded' } : null;
 }
 
-async function toTrack(file: File): Promise<Track | null> {
+async function toTrack({ file, name }: Picked): Promise<Track | null> {
   const id = localId(file.uri);
   let tags: TagResult = { format: 'unknown' };
   const src = openSource(file);
@@ -55,8 +79,8 @@ async function toTrack(file: File): Promise<Track | null> {
   } finally {
     src.close();
   }
-  const guess = parseFilename(file.name);
-  const title = tags.title ?? guess.title ?? file.name;
+  const guess = parseFilename(name);
+  const title = tags.title ?? guess.title ?? name;
   const artist = tags.artist ?? tags.albumArtist ?? guess.artist;
   const cover = tags.picture ? saveArtwork(id, tags.picture) : undefined;
 
@@ -81,7 +105,7 @@ async function toTrack(file: File): Promise<Track | null> {
     releaseDate: tags.year,
     local: {
       uri: file.uri,
-      fileName: file.name,
+      fileName: name,
       sizeBytes: file.size ?? 0,
       format: tags.format,
       codec: tags.codec,
@@ -98,27 +122,50 @@ async function toTrack(file: File): Promise<Track | null> {
   };
 }
 
-function collect(d: Directory, out: File[], depth = 0) {
-  if (depth > MAX_DEPTH || out.length >= MAX_FILES) return;
-  let items: (Directory | File)[] = [];
-  try {
-    items = d.list();
-  } catch {
-    return;
+/**
+ * Walk a picked folder for audio files. Listing a document folder is a
+ * synchronous native call, so yield between folders to keep the UI moving and
+ * show how many songs have been found so far.
+ */
+async function collect(root: Directory): Promise<Picked[]> {
+  const out: Picked[] = [];
+  const stack: [Directory, number][] = [[root, 0]];
+  let dirs = 0;
+  while (stack.length && out.length < MAX_FILES) {
+    const [d, depth] = stack.pop()!;
+    let items: (Directory | File)[] = [];
+    try {
+      items = d.list();
+    } catch {
+      continue;
+    }
+    const files: File[] = [];
+    for (const it of items) {
+      if (it instanceof Directory) {
+        if (depth < MAX_DEPTH) stack.push([it, depth + 1]);
+      } else files.push(it);
+    }
+    if (files.length) {
+      const names = await resolveNames(files.map((f) => f.uri));
+      files.forEach((file, i) => {
+        const p = { file, name: names[i]! };
+        if (out.length < MAX_FILES && isAudio(p)) out.push(p);
+      });
+    }
+    if (++dirs % 3 === 0 || !stack.length) {
+      useDeviceMusic.getState().setImporting({ done: 0, total: 0, label: out.length ? `Found ${out.length} ${out.length === 1 ? 'song' : 'songs'}…` : 'Looking for music…' });
+      await new Promise((r) => setTimeout(r, 0));
+    }
   }
-  for (const it of items) {
-    if (out.length >= MAX_FILES) return;
-    if (it instanceof Directory) collect(it, out, depth + 1);
-    else if (isAudio(it)) out.push(it);
-  }
+  return out;
 }
 
 let running = false;
 
-async function importMany(files: File[]): Promise<number> {
+async function importMany(files: Picked[]): Promise<number> {
   const store = useDeviceMusic.getState();
   const known = new Set(store.tracks.map((t) => t.local?.uri));
-  const fresh = files.filter((f) => !known.has(f.uri));
+  const fresh = files.filter((f) => !known.has(f.file.uri));
   if (!fresh.length) {
     toast(files.length ? 'Those songs are already in your library' : 'No audio files found there', 'info');
     return 0;
@@ -176,7 +223,10 @@ export function importFiles() {
   return guarded(async () => {
     const res = await File.pickFileAsync({ multipleFiles: true, mimeTypes: ['audio/*'] });
     if (res.canceled) return 0;
-    return importMany(res.result.filter(isAudio));
+    const names = await resolveNames(res.result.map((f) => f.uri));
+    // The picker was limited to audio, so also keep files whose name has no extension.
+    const picked = res.result.map((file, i) => ({ file, name: names[i]! })).filter((p) => isAudio(p) || !HAS_EXT.test(p.name));
+    return importMany(picked);
   });
 }
 
@@ -187,9 +237,7 @@ export function importFolder() {
     if (!d) return 0;
     useDeviceMusic.getState().setImporting({ done: 0, total: 0, label: 'Looking for music…' });
     await new Promise((r) => setTimeout(r, 16));
-    const files: File[] = [];
-    collect(d, files);
-    return importMany(files);
+    return importMany(await collect(d));
   });
 }
 
@@ -231,4 +279,37 @@ export async function refreshFileInfo(track: Track): Promise<Track> {
   const q = usePlayer.getState().queue;
   if (q.some((t) => t.id === track.id)) usePlayer.setState({ queue: q.map((t) => (t.id === track.id ? { ...t, ...patch } : t)) });
   return { ...track, ...patch };
+}
+
+/**
+ * One-off repair for songs imported before 1.1.0-beta, whose file name was
+ * saved as an encoded document id. Fixes the name, and the title / artist
+ * guessed from it when the file had no tags (unless identification has
+ * already replaced them).
+ */
+export async function repairFileNames() {
+  if (Platform.OS === 'web') return;
+  const broken = useDeviceMusic.getState().tracks.filter((t) => t.local && (t.local.fileName.includes('%') || !HAS_EXT.test(t.local.fileName)));
+  if (!broken.length) return;
+  let names: string[];
+  try {
+    names = await resolveNames(broken.map((t) => t.local!.uri));
+  } catch {
+    return;
+  }
+  const store = useDeviceMusic.getState();
+  broken.forEach((t, i) => {
+    const name = names[i];
+    const l = t.local!;
+    if (!name || name === l.fileName) return;
+    const patch: Partial<Track> = { local: { ...l, fileName: name } };
+    const old = parseFilename(l.fileName);
+    const fresh = parseFilename(name);
+    if (!l.tags?.title && t.title === (old.title ?? l.fileName)) patch.title = fresh.title ?? name;
+    const oldArtist = old.artist ?? 'Unknown artist';
+    if (!l.tags?.artist && fresh.artist && t.artists[0]?.name === oldArtist) {
+      patch.artists = [{ id: `local-artist:${slug(fresh.artist)}`, name: fresh.artist }];
+    }
+    store.patchTrack(t.id, patch);
+  });
 }

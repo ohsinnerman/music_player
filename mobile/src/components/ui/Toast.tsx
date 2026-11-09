@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInUp, FadeOutUp, LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { create } from 'zustand';
+import { logEvent } from '@/lib/diagnostics';
 import { haptic } from '@/lib/haptics';
 import { useColors } from '@/theme';
 import { Glass } from './Glass';
@@ -21,6 +22,8 @@ let seq = 0;
 /** Show a short message at the top of the screen. Safe to call from anywhere. */
 export function toast(message: string, kind: Kind = 'info') {
   const id = ++seq;
+  // Every error the user sees is also kept in Settings → Diagnostics.
+  if (kind === 'error') logEvent('error', 'ui', message);
   if (kind === 'error') haptic.error();
   useToasts.setState((s) => ({ items: [...s.items.filter((t) => t.message !== message), { id, message, kind }].slice(-2) }));
   setTimeout(() => useToasts.setState((s) => ({ items: s.items.filter((t) => t.id !== id) })), kind === 'error' ? 3600 : 2400);

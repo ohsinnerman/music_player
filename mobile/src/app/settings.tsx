@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { CircleCheck, CircleX, LogOut, type LucideIcon, Moon, ShieldCheck, Smartphone, Sun, Trash2, UserRound, X } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
-import { Alert, Linking, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Alert, Linking, Platform, ScrollView, Share, StyleSheet, Switch, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { endpoints } from '@/api/endpoints';
 import { queryClient } from '@/api/queries';
@@ -18,6 +18,7 @@ import { Text } from '@/components/ui/Text';
 import { TextField } from '@/components/ui/TextField';
 import { toast } from '@/components/ui/Toast';
 import { useLocalLibrary } from '@/library/store';
+import { diagnosticsText, useDiagnostics } from '@/lib/diagnostics';
 import { ALLOW_CLEARTEXT, type ThemeMode, checkServerUrl, useSettings } from '@/settings/store';
 import { GUTTER, fonts, makeStyles, radius, useColors } from '@/theme';
 
@@ -108,6 +109,49 @@ function Appearance() {
         })}
       </View>
     </View>
+  );
+}
+
+function Diagnostics({ version }: { version: string }) {
+  const styles = useStyles();
+  const colors = useColors();
+  const entries = useDiagnostics((x) => x.entries);
+  const clear = useDiagnostics((x) => x.clear);
+  const recent = entries.slice(0, 4);
+  return (
+    <Group title="Diagnostics" footer="The last 80 errors (crashes, playback and network failures) are kept on this phone only. Share them when reporting a bug.">
+      {recent.length ? (
+        recent.map((e) => (
+          <View key={`${e.at}-${e.message}`} style={{ paddingHorizontal: 16, paddingVertical: 10, gap: 2 }}>
+            <Text variant="footnote" color={e.level === 'error' ? colors.danger : colors.textSecondary} numberOfLines={2}>
+              {e.scope} · {e.message}
+            </Text>
+            <Text variant="caption" tone="tertiary">
+              {new Date(e.at).toLocaleString()}
+            </Text>
+          </View>
+        ))
+      ) : (
+        <Text variant="callout" tone="secondary" style={{ padding: 16 }}>
+          No problems recorded.
+        </Text>
+      )}
+      <View style={styles.sep} />
+      <Row
+        label={`Share diagnostics${entries.length ? ` (${entries.length})` : ''}`}
+        onPress={() =>
+          void Share.share({
+            message: diagnosticsText({ app: `Aura ${version}`, platform: `${Platform.OS} ${String(Platform.Version)}`, server: useSettings.getState().serverUrl ?? 'default' }),
+          })
+        }
+      />
+      {entries.length ? (
+        <>
+          <View style={styles.sep} />
+          <Row label="Clear diagnostics" onPress={clear} />
+        </>
+      ) : null}
+    </Group>
   );
 }
 
@@ -320,6 +364,8 @@ export default function Settings() {
           <View style={styles.sep} />
           <Toggle label="Listen to identify songs" hint="Uses AI on your server (Groq)" value={s.aiListen} onChange={() => s.toggle('aiListen')} />
         </Group>
+
+        <Diagnostics version={version} />
 
         <Group title="Storage">
           <Row

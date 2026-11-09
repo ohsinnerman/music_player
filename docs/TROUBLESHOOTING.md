@@ -1,5 +1,9 @@
 # Troubleshooting
 
+**First stop for any bug:** Settings → **Diagnostics** lists recent errors and playback failures
+(with the player's error code and the file's format). **Share diagnostics** sends them as text — no
+tokens or account data are included.
+
 ### "Connect your server" / "Add your server address in Settings"
 The build has no backend URL. Open **Settings → Server**, paste `https://…`, tap **Test & save**.
 To bake it in, set the `API_URL` repository variable and rebuild ([BUILD_APK.md](BUILD_APK.md)).
@@ -85,3 +89,8 @@ inaudible in practice; a USB DAC gets closest to the original. See [AUDIO_QUALIT
 ### "Play on" doesn't find my receiver
 See [DLNA.md → Troubleshooting](DLNA.md#troubleshooting): same Wi-Fi (not a guest network), receiver on
 or in network standby, no VPN on the phone. Builds before Nov 9 2026 don't have DLNA at all.
+
+### Imported songs show names like "primary%3AMusic…" or "audio%3A1234"
+Versions before 1.1.0-beta saved Android's document id instead of the file name. 1.1.0-beta reads
+the real names and repairs existing songs a moment after launch (titles that came from the file name
+are fixed too, unless identification already replaced them).

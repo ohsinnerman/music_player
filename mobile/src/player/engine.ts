@@ -13,6 +13,7 @@ import { toast } from '@/components/ui/Toast';
 import * as cast from '@/cast/session';
 import type { Renderer } from '@/cast/upnp';
 import { recordPlay } from '@/library/hooks';
+import { logEvent } from '@/lib/diagnostics';
 import { describeFormat, ensurePlayableCopy, playableUri, prefersCopies, setPreferCopies } from '@/local/playback';
 import { type RepeatMode, clock, usePlayer, useProgress } from './store';
 
@@ -192,6 +193,7 @@ async function recover(index: number, code?: number) {
   if (!t) return;
   const n = (attempts.get(t.id) ?? 0) + 1;
   attempts.set(t.id, n);
+  logEvent('error', 'playback', `code ${code ?? '?'} on ${t.local ? `file ${t.local.fileName} (${describeFormat(t)})` : `${t.provider} ${t.id}`}`, t.local ? playableUri(t) : undefined);
 
   if (t.local && n === 1 && isIoError(code)) {
     const uri = await ensurePlayableCopy(t);

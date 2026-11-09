@@ -7,7 +7,9 @@ import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioMixerAttributes
+import android.net.Uri
 import android.os.Build
+import android.provider.OpenableColumns
 import android.os.Handler
 import android.os.Looper
 import expo.modules.kotlin.modules.Module
@@ -33,6 +35,24 @@ class AuraAudioRouteModule : Module() {
 
     Function("getOutputInfo") {
       outputInfo()
+    }
+
+    /** Real file names for picked files (content:// URIs don't contain them). Runs off the JS thread. */
+    AsyncFunction("displayNames") { uris: List<String> ->
+      val resolver = appContext.reactContext?.contentResolver
+      uris.map { u ->
+        try {
+          if (u.startsWith("content://") && resolver != null) {
+            resolver.query(Uri.parse(u), arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+              if (c.moveToFirst() && !c.isNull(0)) c.getString(0) else null
+            }
+          } else {
+            Uri.parse(u).lastPathSegment
+          }
+        } catch (e: Exception) {
+          null
+        }
+      }
     }
 
     OnStartObserving {
