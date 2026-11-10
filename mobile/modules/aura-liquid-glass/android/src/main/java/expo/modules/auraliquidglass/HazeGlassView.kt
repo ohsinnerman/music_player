@@ -121,12 +121,14 @@ class HazeGlassView(context: Context, appContext: AppContext) : ExpoView(context
       val style = base.material3(tint = null).then {
         shape(RoundedCornerShape(p.cornerRadiusDp.dp))
         surfaceProfile(SurfaceProfile.Squircle)
-        optics { o: GlassOptics ->
+        // The plain overload (not the transform lambda): start from the style's own optics.
+        val o = if (p.clear) GlassOptics.clear else GlassOptics.regular
+        optics(
           o.copy(
             blurRadius = OpticalSizeValue.Fixed(p.blurDp.dp),
             refractionStrength = o.refractionStrength * p.refraction.coerceIn(0f, 1.2f),
-          )
-        }
+          ),
+        )
         specularIntensity((0.48f * p.specular).coerceIn(0f, 1f))
         chromaticAberrationStrength((p.dispersion * 0.6f).coerceIn(0f, 1f))
       }
