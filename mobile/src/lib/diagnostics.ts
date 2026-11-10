@@ -1,22 +1,17 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { type DiagEntry, buildReport, mergeEntry } from './diagnosticsFormat';
 import { persistStorage } from './storage';
 
+export type { DiagEntry } from './diagnosticsFormat';
+
 /**
- * On-device diagnostics: the last 80 errors / warnings (JS crashes, unhandled
- * promise rejections, playback and network failures). Shown in Settings →
- * Diagnostics and shareable as text for bug reports. Nothing leaves the phone
- * unless you share it.
+ * On-device diagnostics: recent errors, warnings and a few milestones (casting:
+ * connected, which TV screen, what's playing). Repeats are folded into one line
+ * with a count, and every line says which app version wrote it. Shown in
+ * Settings → Diagnostics and shareable as text for bug reports. Nothing leaves
+ * the phone unless you share it.
  */
-
-export interface DiagEntry {
-  at: string;
-  level: 'error' | 'warn' | 'info';
-  scope: string;
-  message: string;
-  detail?: string;
-}
-
 interface DiagState {
   entries: DiagEntry[];
   clear: () => void;
@@ -32,23 +27,21 @@ export const useDiagnostics = create<DiagState>()(
   ),
 );
 
-const MAX = 80;
+let appVersion: string | undefined;
+/** Stamp entries with the running app version (call once at startup). */
+export function setDiagnosticsVersion(v: string) {
+  appVersion = v;
+}
 
 export function logEvent(level: DiagEntry['level'], scope: string, message: string, detail?: unknown) {
   const d = detail instanceof Error ? `${detail.name}: ${detail.message}\n${detail.stack ?? ''}` : detail === undefined ? undefined : String(detail);
-  const entry: DiagEntry = { at: new Date().toISOString(), level, scope, message: message.slice(0, 500), detail: d?.slice(0, 2000) };
-  useDiagnostics.setState((s) => ({ entries: [entry, ...s.entries].slice(0, MAX) }));
+  const entry: DiagEntry = { at: new Date().toISOString(), level, scope, message: message.slice(0, 500), detail: d?.slice(0, 2000), v: appVersion };
+  useDiagnostics.setState((s) => ({ entries: mergeEntry(s.entries, entry) }));
 }
 
-export function diagnosticsText(meta: Record<string, string>): string {
-  const head = Object.entries(meta)
-    .map(([k, v]) => `${k}: ${v}`)
-    .join('\n');
-  const body = useDiagnostics
-    .getState()
-    .entries.map((e) => `[${e.at}] ${e.level.toUpperCase()} ${e.scope}: ${e.message}${e.detail ? `\n  ${e.detail.replace(/\n/g, '\n  ')}` : ''}`)
-    .join('\n');
-  return `${head}\n\n${body || '(no events)'}`;
+/** The shareable report (see buildReport). */
+export function diagnosticsText(meta: Record<string, string>, sections: Record<string, string[]> = {}): string {
+  return buildReport(meta, sections, useDiagnostics.getState().entries, appVersion);
 }
 
 let installed = false;

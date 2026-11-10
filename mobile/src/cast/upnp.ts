@@ -16,6 +16,9 @@ export interface Renderer {
   gcId?: string;
   /** Google Cast with Aura's TV screen set: can the device run it yet? */
   gcAuraScreen?: boolean | null;
+  gcAuraFailed?: boolean;
+  /** Wi-Fi address (Google Cast devices). */
+  ip?: string | null;
   udn: string;
   name: string;
   manufacturer?: string;

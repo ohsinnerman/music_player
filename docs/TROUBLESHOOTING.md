@@ -86,6 +86,12 @@ latest APK. The badge and file details still work.
 That's accurate: Android's shared mixer runs at 48 kHz and the player decodes to 16-bit PCM. It's
 inaudible in practice; a USB DAC gets closest to the original. See [AUDIO_QUALITY.md](AUDIO_QUALITY.md).
 
+### Reading a diagnostics report
+Settings → Diagnostics → Share starts with the app version and a summary for that version. Repeats
+are folded into one line (`×12 (first …)`), and lines written by an older version are marked
+`[from 1.2.3-beta]` — so errors that were fixed by an update are easy to tell apart. The *Casting*
+section lists Cast / DLNA devices, their IPs and which TV screen they run.
+
 ### "Play on" doesn't find my receiver
 See [DLNA.md → Troubleshooting](DLNA.md#troubleshooting): same Wi-Fi (not a guest network), receiver on
 or in network standby, no VPN on the phone. Builds before Nov 9 2026 don't have DLNA at all.

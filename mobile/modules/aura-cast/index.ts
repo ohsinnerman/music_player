@@ -25,15 +25,31 @@ export interface GcDevice {
   selected?: boolean;
   /** With Aura's TV screen set: can this device run it? (null = Google's screen is set). */
   auraScreen?: boolean | null;
+  /** Aura's screen failed to start on it this run (Google's screen is used). */
+  auraFailed?: boolean;
+  ip?: string | null;
 }
 
 export interface GcSessionEvent {
-  state: 'connecting' | 'connected' | 'failed' | 'ended' | 'suspended';
+  state: 'connecting' | 'connected' | 'retrying' | 'failed' | 'ended' | 'suspended';
   name?: string | null;
   error?: string | null;
   /** Receiver app the session runs (1.2.4+). */
   appId?: string | null;
   auraScreen?: boolean;
+  /** Cast status code behind `error` (1.2.5+). */
+  code?: number | null;
+  ip?: string | null;
+  model?: string | null;
+}
+
+export interface GcVolumeEvent {
+  /** 0–1 */
+  volume: number;
+  muted: boolean;
+  /** A phone volume button was pressed. */
+  fromKey: boolean;
+  name?: string | null;
 }
 
 export interface GcStatusEvent {
@@ -80,6 +96,7 @@ interface Native {
   addListener?(event: 'onCastDevices', fn: (e: { devices: GcDevice[] }) => void): EventSubscription;
   addListener?(event: 'onCastSession', fn: (e: GcSessionEvent) => void): EventSubscription;
   addListener?(event: 'onCastStatus', fn: (e: GcStatusEvent) => void): EventSubscription;
+  addListener?(event: 'onCastVolume', fn: (e: GcVolumeEvent) => void): EventSubscription;
   discover(timeoutMs: number, st: string): Promise<SsdpHit[]>;
   request(method: string, url: string, headers: Record<string, string>, body: string | null, timeoutMs: number): Promise<LanResponse>;
   startServer(): Promise<{ host: string; port: number }>;

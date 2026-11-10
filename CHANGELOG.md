@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.2.5-beta — 2026-11-10
+
+Google Cast, after the first good run of Aura's TV screen on a 2013 Chromecast.
+
+- **Volume buttons control the Chromecast** while casting, in 5 % steps, also while paused, with an
+  on-screen level overlay. The phone's own volume is left alone. Aura's slider follows volume changes
+  made anywhere (TV remote, Google Home, another phone) and no longer jumps back while you drag it.
+- **Song changes:** status from the previous song is ignored (no double skips, no progress-bar jumps
+  after skip / seek); play shows as playing straight away; 96 kHz+ songs are stepped over in one go
+  with one message; after 3 failed songs in a row Aura stops instead of running through the queue.
+- **Aura's screen falls back to Google's** when it can't start on a device, and says so, instead of
+  failing the cast.
+- **Device list:** tapping a device that dropped off the list (restarted / changed address) searches
+  again and retries once. The stray "didn't answer" warnings 20 s after a failed tap are gone.
+- **TV screen sheet** shows each device's IP address and model.
+- **Diagnostics:** Cast errors in plain words with Cast's own reason next to the code (e.g. "Bedroom TV
+  ended the cast — <reason> (code 2160)"); repeats folded into one line with a count; every line says which version
+  wrote it; casting milestones (connected, which screen, what's playing); a *Casting* section in the
+  shared report (devices, IPs, screens); the preview in Settings shows only problems.
+
 ## 1.2.4-beta — 2026-11-10
 
 Google Cast fixes from the first real Chromecast test.

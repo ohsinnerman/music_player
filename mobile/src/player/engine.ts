@@ -143,6 +143,9 @@ cast.setCastHooks({
     else if (repeat === 'all' && queue.length) void castLoad(0);
     else usePlayer.setState({ isPlaying: false });
   },
+  onNotice(message) {
+    toast(message, 'info');
+  },
   onLost(message) {
     toast(message, 'error');
     usePlayer.setState({ isPlaying: false });
@@ -152,10 +155,33 @@ cast.setCastHooks({
   },
 });
 
-/** Move to a queue index and send that song to the receiver. */
+/** Songs skipped in a row because the receiver couldn't play them (stops a runaway skip chain). */
+let failedRun = 0;
+
+/**
+ * Move to a queue index and send that song to the receiver. Songs the Google Cast
+ * device can't play (above 96 kHz) are stepped over in one go with one message.
+ */
 async function castLoad(i: number, startAt = 0, autoplay = true) {
   const { queue } = usePlayer.getState();
-  const t = queue[i];
+  let t = queue[i];
+  if (!t) return;
+  const skipped: string[] = [];
+  while (t && cast.castBlocker(t)) {
+    skipped.push(cast.castBlocker(t)!);
+    i += 1;
+    t = queue[i];
+    startAt = 0;
+  }
+  if (skipped.length) {
+    const rates = [...new Set(skipped)].join(', ');
+    const what = skipped.length === 1 ? `a ${rates} song` : `${skipped.length} songs (${rates})`;
+    toast(t ? `Skipped ${what} — Google Cast plays up to 96 kHz. Use a DLNA receiver for those.` : `Google Cast plays up to 96 kHz — the rest of this queue is higher (${rates}). Use a DLNA receiver for it.`, t ? 'info' : 'error');
+    if (!t) {
+      usePlayer.setState({ isPlaying: false, isBuffering: false });
+      return;
+    }
+  }
   if (!t) return;
   usePlayer.setState({ index: i });
   pending = { index: i, until: Date.now() + 1500 };
@@ -166,11 +192,18 @@ async function castLoad(i: number, startAt = 0, autoplay = true) {
   }
   onIndex(i);
   try {
-    await cast.load(t, startAt, autoplay);
+    if (await cast.load(t, startAt, autoplay)) failedRun = 0;
   } catch (e) {
-    const hasNext = i < queue.length - 1;
-    toast(`${e instanceof Error ? e.message : 'Couldn’t play'}${hasNext ? ' — skipping' : ''}`, 'error');
+    failedRun += 1;
+    // Keep going past a file the device rejects, but not through the whole queue if it rejects everything.
+    const hasNext = i < queue.length - 1 && failedRun < 3;
+    const msg = e instanceof Error ? e.message : 'Couldn’t play';
+    toast(hasNext ? `${msg} — skipping to the next song` : failedRun >= 3 ? `${msg} — stopped after 3 songs in a row failed` : msg, 'error');
     if (hasNext && cast.useCast.getState().active) setTimeout(() => void castLoad(i + 1), 600);
+    else {
+      failedRun = 0;
+      usePlayer.setState({ isPlaying: false, isBuffering: false });
+    }
   }
 }
 
@@ -348,6 +381,7 @@ export const player = {
     if (s.index < 0) return;
     if (casting()) {
       const st = cast.useCast.getState().status;
+      usePlayer.setState({ isPlaying: true });
       if (st === 'stopped' || st === 'error') void castLoad(s.index, useProgress.getState().position);
       else void cast.play();
       return;

@@ -22,10 +22,15 @@ class AuraCastModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("AuraCast")
 
-    Events("onCastDevices", "onCastSession", "onCastStatus")
+    Events("onCastDevices", "onCastSession", "onCastStatus", "onCastVolume")
 
     OnCreate {
       GoogleCast.emit = { name, body -> sendEvent(name, body) }
+    }
+
+    // Volume buttons → Cast device while casting (the hook checks for a session on every press).
+    OnActivityEntersForeground {
+      VolumeKeys.install(appContext.currentActivity)
     }
 
     OnDestroy {
@@ -36,7 +41,12 @@ class AuraCastModule : Module() {
     /* ───── Google Cast ───── */
 
     AsyncFunction("gcInit") { promise: Promise ->
-      GoogleCast.init(context) { err -> if (err == null) promise.resolve(true) else promise.reject("ERR_GCAST", err, null) }
+      GoogleCast.init(context) { err ->
+        if (err == null) {
+          VolumeKeys.install(appContext.currentActivity)
+          promise.resolve(true)
+        } else promise.reject("ERR_GCAST", err, null)
+      }
     }
 
     Function("gcStartDiscovery") {

@@ -132,7 +132,7 @@ function TvScreenSheet({ close }: { close: () => void }) {
             Your devices
           </Text>
           {tvs.map((d) => {
-            const ready = d.gcAuraScreen !== false;
+            const ready = d.gcAuraScreen !== false && !d.gcAuraFailed;
             return (
               <View key={d.udn} style={styles.device}>
                 {ready ? <CircleCheck size={20} color={colors.success} /> : <CircleDashed size={20} color={colors.textTertiary} />}
@@ -141,8 +141,17 @@ function TvScreenSheet({ close }: { close: () => void }) {
                     {d.name}
                   </Text>
                   <Text variant="footnote" tone="secondary">
-                    {ready ? 'Shows Aura’s screen' : 'Not ready yet — shows Google’s screen. Check its serial number in the console, wait 15 minutes, then unplug it for 10 seconds.'}
+                    {ready
+                      ? 'Shows Aura’s screen'
+                      : d.gcAuraFailed
+                        ? 'Aura’s screen didn’t start on it, so it’s using Google’s screen. It tries Aura’s again next time you open Aura.'
+                        : 'Not ready yet — shows Google’s screen. Check its serial number in the console, wait 15 minutes, then unplug it for 10 seconds.'}
                   </Text>
+                  {d.ip ? (
+                    <Text variant="caption" tone="tertiary" selectable>
+                      {[d.model, `IP ${d.ip}`].filter(Boolean).join(' · ')}
+                    </Text>
+                  ) : null}
                 </View>
               </View>
             );

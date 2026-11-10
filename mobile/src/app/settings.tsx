@@ -12,7 +12,7 @@ import { openCastSheet } from '@/components/cast/CastSheet';
 import { GlassControl } from '@/components/settings/GlassControl';
 import { Group, Row, Toggle } from '@/components/settings/Rows';
 import { openTvScreenSheet } from '@/components/cast/TvScreenSheet';
-import { gcastAvailable } from '@/cast/session';
+import { castDiagnostics, gcastAvailable } from '@/cast/session';
 import { hazeGlassSupported } from '../../modules/aura-liquid-glass';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
@@ -71,9 +71,9 @@ function Diagnostics({ version }: { version: string }) {
   const colors = useColors();
   const entries = useDiagnostics((x) => x.entries);
   const clear = useDiagnostics((x) => x.clear);
-  const recent = entries.slice(0, 4);
+  const recent = entries.filter((e) => e.level !== 'info').slice(0, 4);
   return (
-    <Group title="Diagnostics" footer="The last 80 errors (crashes, playback and network failures) are kept on this phone only. Share them when reporting a bug.">
+    <Group title="Diagnostics" footer="Recent errors, warnings and casting events are kept on this phone only — repeats are counted, and each line says which version wrote it. Share them when reporting a bug.">
       {recent.length ? (
         recent.map((e) => (
           <View key={`${e.at}-${e.message}`} style={{ paddingHorizontal: 16, paddingVertical: 10, gap: 2 }}>
@@ -81,7 +81,7 @@ function Diagnostics({ version }: { version: string }) {
               {e.scope} · {e.message}
             </Text>
             <Text variant="caption" tone="tertiary">
-              {new Date(e.at).toLocaleString()}
+              {[new Date(e.at).toLocaleString(), e.count && e.count > 1 ? `${e.count} times` : null, e.v && e.v !== version ? `from ${e.v}` : !e.v ? 'older version' : null].filter(Boolean).join(' · ')}
             </Text>
           </View>
         ))
@@ -95,7 +95,10 @@ function Diagnostics({ version }: { version: string }) {
         label={`Share diagnostics${entries.length ? ` (${entries.length})` : ''}`}
         onPress={() =>
           void Share.share({
-            message: diagnosticsText({ app: `Aura ${version}`, platform: `${Platform.OS} ${String(Platform.Version)}`, server: useSettings.getState().serverUrl ?? 'default' }),
+            message: diagnosticsText(
+              { app: `Aura ${version}`, platform: `${Platform.OS} ${String(Platform.Version)}`, server: useSettings.getState().serverUrl ?? 'default' },
+              { Casting: castDiagnostics() },
+            ),
           })
         }
       />

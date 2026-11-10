@@ -4,9 +4,12 @@ import android.content.Context
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import androidx.mediarouter.media.MediaRouteSelector
 import androidx.mediarouter.media.MediaRouter
+import com.google.android.gms.cast.Cast
 import com.google.android.gms.cast.CastDevice
+import com.google.android.gms.cast.CastStatusCodes
 import com.google.android.gms.cast.CastMediaControlIntent
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaLoadRequestData
@@ -104,6 +107,7 @@ object GoogleCast {
     }.apply()
     val effective = clean ?: DEFAULT_APP
     savedApp = effective
+    auraFailed.clear()
     useApp(effective)
     // Re-register discovery for the new receiver.
     if (discovering) {
@@ -173,6 +177,8 @@ object GoogleCast {
       "connecting" to (route.connectionState == MediaRouter.RouteInfo.CONNECTION_STATE_CONNECTING),
       "selected" to route.isSelected,
       "auraScreen" to runsAuraScreen(route),
+      "auraFailed" to (route.id in auraFailed),
+      "ip" to try { dev?.inetAddress?.hostAddress } catch (e: Exception) { null },
     )
   }
 
@@ -199,6 +205,78 @@ object GoogleCast {
   /* ───────────── Session ───────────── */
 
   private var client: RemoteMediaClient? = null
+  private var attached: CastSession? = null
+
+  /** Volume / mute changes from anywhere (TV remote, Google Home, another phone, our keys). */
+  private val castListener = object : Cast.Listener() {
+    override fun onVolumeChanged() {
+      val s = attached ?: return
+      emit?.invoke("onCastVolume", mapOf("volume" to s.volume, "muted" to s.isMute, "fromKey" to false, "name" to s.castDevice?.friendlyName))
+    }
+  }
+
+  /* Connecting: the route being connected, and whether Aura's screen already failed on it. */
+  private var connectingRoute: String? = null
+  private var triedFallback = false
+  private val auraFailed = mutableSetOf<String>()
+
+  /** "the TV screen app couldn't launch · application not found (code 2004)" */
+  fun describeCode(code: Int): String {
+    val reason = try { cast?.getCastReasonCodeForCastStatusCode(code) } catch (e: Exception) { null }
+    val why = when (reason) {
+      1 -> "internal Cast error"
+      2 -> "stopped on the device"
+      3 -> "another app or phone took over the TV"
+      4 -> "the session couldn't start"
+      5 -> "the previous session couldn't resume"
+      6 -> "the connection to the device broke"
+      7 -> "the device took too long to answer"
+      8 -> "network error"
+      9 -> "the output was switched"
+      10 -> "the TV screen app couldn't start on the device"
+      11 -> "cancelled"
+      else -> null
+    }
+    val name = try { CastStatusCodes.getStatusCodeString(code) } catch (e: Exception) { null }
+      ?.takeUnless { it.isBlank() || it.startsWith("unknown", ignoreCase = true) }
+      ?.lowercase()?.replace('_', ' ')
+    return listOfNotNull(why, name).distinct().joinToString(" · ").ifEmpty { "unknown reason" } + " (code $code)"
+  }
+
+  /* ───────────── Volume buttons ───────────── */
+
+  private const val STEP = 0.05
+  private var pendingVol = -1.0
+  private var pendingAt = 0L
+
+  /** Main thread: a Cast session is up, so the phone's volume buttons belong to it. */
+  fun handlesVolumeKeys(): Boolean = try { session()?.isConnected == true } catch (e: Exception) { false }
+
+  /** One volume-button press (main thread). Steps of 5 %, from the last value we set so fast presses add up. */
+  fun volumeKey(up: Boolean) {
+    val s = session() ?: return
+    val now = SystemClock.uptimeMillis()
+    val base = if (pendingVol >= 0 && now - pendingAt < 1500) pendingVol else s.volume
+    val v = (Math.round((base + if (up) STEP else -STEP) * 20) / 20.0).coerceIn(0.0, 1.0)
+    pendingVol = v
+    pendingAt = now
+    try {
+      if (up && s.isMute) s.setMute(false)
+      s.volume = v
+    } catch (e: Exception) {
+      // device refused; the next status corrects the slider
+    }
+    emit?.invoke("onCastVolume", mapOf("volume" to v, "muted" to false, "fromKey" to true, "name" to s.castDevice?.friendlyName))
+  }
+
+  fun muteKey() {
+    val s = session() ?: return
+    try {
+      s.setMute(!s.isMute)
+    } catch (e: Exception) {
+      // ignore
+    }
+  }
 
   private val status = object : RemoteMediaClient.Callback() {
     override fun onStatusUpdated() = report()
@@ -209,6 +287,12 @@ object GoogleCast {
 
   private fun attach(session: CastSession) {
     detach()
+    try {
+      session.addCastListener(castListener)
+      attached = session
+    } catch (e: Exception) {
+      // no volume events; status updates still carry the volume
+    }
     val c = session.remoteMediaClient ?: return
     c.registerCallback(status)
     c.addProgressListener(progress, 1000)
@@ -216,6 +300,12 @@ object GoogleCast {
   }
 
   private fun detach() {
+    try {
+      attached?.removeCastListener(castListener)
+    } catch (e: Exception) {
+      // gone
+    }
+    attached = null
     client?.unregisterCallback(status)
     client?.removeProgressListener(progress)
     client = null
@@ -226,14 +316,35 @@ object GoogleCast {
   private val sessions = object : SessionManagerListener<CastSession> {
     override fun onSessionStarting(s: CastSession) = emitSession("connecting", s)
     override fun onSessionStarted(s: CastSession, id: String) {
+      connectingRoute = null
       attach(s)
       emitSession("connected", s)
     }
-    override fun onSessionStartFailed(s: CastSession, error: Int) = emitSession("failed", s, "Couldn't connect (error $error)")
+    override fun onSessionStartFailed(s: CastSession, error: Int) {
+      val name = s.castDevice?.friendlyName ?: "the device"
+      val routeId = connectingRoute
+      val usedAura = cast?.castOptions?.receiverApplicationId?.let { it != DEFAULT_APP } == true
+      if (usedAura && routeId != null && !triedFallback) {
+        // Aura's screen wouldn't start: play with Google's screen instead of failing.
+        triedFallback = true
+        auraFailed.add(routeId)
+        emitSession("retrying", s, "Aura’s TV screen couldn’t start on $name — ${describeCode(error)}. Using Google’s screen.", error)
+        main.postDelayed({
+          useApp(DEFAULT_APP)
+          val route = castRoutes().firstOrNull { it.id == routeId }
+          if (route != null) router?.selectRoute(route)
+          else emitSession("failed", s, "$name went off the network while retrying", error)
+        }, 700)
+        return
+      }
+      connectingRoute = null
+      emitSession("failed", s, "Couldn’t connect to $name — ${describeCode(error)}", error)
+    }
     override fun onSessionEnding(s: CastSession) {}
     override fun onSessionEnded(s: CastSession, error: Int) {
       detach()
-      emitSession("ended", s, if (error != 0) "Disconnected (error $error)" else null)
+      val name = s.castDevice?.friendlyName ?: "The device"
+      emitSession("ended", s, if (error != 0) "$name ended the cast — ${describeCode(error)}" else null, error)
     }
     override fun onSessionResuming(s: CastSession, id: String) {}
     override fun onSessionResumed(s: CastSession, wasSuspended: Boolean) {
@@ -244,11 +355,20 @@ object GoogleCast {
     override fun onSessionSuspended(s: CastSession, reason: Int) = emitSession("suspended", s)
   }
 
-  private fun emitSession(state: String, s: CastSession, error: String? = null) {
+  private fun emitSession(state: String, s: CastSession, error: String? = null, code: Int? = null) {
     val app = try { s.applicationMetadata?.applicationId } catch (e: Exception) { null }
     emit?.invoke(
       "onCastSession",
-      mapOf("state" to state, "name" to s.castDevice?.friendlyName, "error" to error, "appId" to app, "auraScreen" to (app != null && app != DEFAULT_APP)),
+      mapOf(
+        "state" to state,
+        "name" to s.castDevice?.friendlyName,
+        "error" to error,
+        "code" to code,
+        "appId" to app,
+        "auraScreen" to (app != null && app != DEFAULT_APP),
+        "ip" to try { s.castDevice?.inetAddress?.hostAddress } catch (e: Exception) { null },
+        "model" to s.castDevice?.modelName,
+      ),
     )
   }
 
@@ -291,8 +411,10 @@ object GoogleCast {
       emitSession("connected", current)
       return@post done(null)
     }
-    // Aura's screen where the device can run it, Google's screen where it can't (yet).
-    useApp(if (runsAuraScreen(route) == true) savedApp else DEFAULT_APP)
+    // Aura's screen where the device can run it (and it hasn't failed there this run), Google's elsewhere.
+    connectingRoute = route.id
+    triedFallback = false
+    useApp(if (runsAuraScreen(route) == true && route.id !in auraFailed) savedApp else DEFAULT_APP)
     r.selectRoute(route)
     done(null)
   }
@@ -337,7 +459,8 @@ object GoogleCast {
       .setCurrentTime((startAt * 1000).toLong())
       .build()
     c.load(req).setResultCallback { r ->
-      if (r.status.isSuccess) done(null) else done(r.status.statusMessage ?: "The Cast device couldn't play this file (${r.status.statusCode})")
+      if (r.status.isSuccess) done(null)
+      else done(r.status.statusMessage?.takeIf { it.isNotBlank() } ?: "The Cast device couldn’t play this file — ${describeCode(r.status.statusCode)}")
     }
   }
 
@@ -358,6 +481,8 @@ object GoogleCast {
 
   fun setVolume(v: Double) = main.post {
     try {
+      pendingVol = v.coerceIn(0.0, 1.0)
+      pendingAt = SystemClock.uptimeMillis()
       session()?.volume = v.coerceIn(0.0, 1.0)
     } catch (e: Exception) {
       // device refused

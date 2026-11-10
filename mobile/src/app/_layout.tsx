@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 // Import each weight directly so unused weights/italics aren't bundled into the APK.
 import { InstrumentSerif_400Regular } from '@expo-google-fonts/instrument-serif/400Regular';
 import { InstrumentSerif_400Regular_Italic } from '@expo-google-fonts/instrument-serif/400Regular_Italic';
@@ -22,9 +23,10 @@ import { GlassDock } from '@/components/dock/GlassDock';
 import { PlaybackClock } from '@/components/player/PlaybackClock';
 import { PlayerSheet } from '@/components/player/PlayerSheet';
 import { SheetHost } from '@/components/ui/Sheet';
+import { CastVolumeHud } from '@/components/cast/CastVolumeHud';
 import { ToastHost } from '@/components/ui/Toast';
 import { ChromeProvider, useBlurTarget } from '@/lib/chrome';
-import { installGlobalHandlers, logEvent } from '@/lib/diagnostics';
+import { installGlobalHandlers, logEvent, setDiagnosticsVersion } from '@/lib/diagnostics';
 import { startGlassSync } from '@/lib/glass';
 import { repairFileNames } from '@/local/import';
 import { useDeviceMusic } from '@/local/store';
@@ -35,6 +37,7 @@ import '@/library/hooks'; // registers guest → account library sync
 import '@/audio/sound'; // pushes sound settings (EQ, ReplayGain…) to the player
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
+setDiagnosticsVersion((Constants.expoConfig?.extra as { versionLabel?: string } | undefined)?.versionLabel ?? Constants.expoConfig?.version ?? 'unknown');
 installGlobalHandlers();
 
 // Fix file names saved by older versions (encoded document ids), once the library is loaded.
@@ -106,6 +109,7 @@ function Shell() {
         <GlassDock />
         <PlayerSheet />
         <SheetHost />
+        <CastVolumeHud />
         <ToastHost />
         <PlaybackClock />
       </View>

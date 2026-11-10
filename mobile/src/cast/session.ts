@@ -2,10 +2,11 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { playUrl } from '@/api/client';
 import type { Track } from '@/api/types';
+import { logEvent } from '@/lib/diagnostics';
 import { persistStorage } from '@/lib/storage';
 import { usePlayer } from '@/player/store';
 import { GCAST_MAX_RATE, tvData } from './tvScreen';
-import { castNative, type GcDevice, type GcLoad, type GcStatusEvent, googleCastSupported } from '../../modules/aura-cast';
+import { castNative, type GcDevice, type GcLoad, type GcSessionEvent, type GcStatusEvent, type GcVolumeEvent, googleCastSupported } from '../../modules/aura-cast';
 import { AVT, MEDIA_RENDERER, RC, type Renderer, describeFault, didl, formatTime, mimeFor, parseDescription, parseSoapResponse, parseTime, soapEnvelope, soapHeaders } from './upnp';
 
 /**
@@ -28,6 +29,9 @@ interface CastState {
   error?: string;
   /** Google Cast: which screen the TV shows for this session. */
   screen?: 'aura' | 'google';
+  /** Bumped on every phone volume-button press while casting (drives the volume HUD). */
+  volumeHudAt?: number;
+  muted?: boolean;
   /** Last receiver used, offered first next time. */
   lastUdn?: string;
 }
@@ -47,6 +51,8 @@ export interface CastHooks {
   onProgress(position: number, duration: number, playing: boolean, buffering: boolean): void;
   onEnded(): void;
   onLost(message: string): void;
+  /** Something the user should know that isn't a failure (e.g. fell back to Google's screen). */
+  onNotice?(message: string): void;
 }
 let hooks: CastHooks | null = null;
 export const setCastHooks = (h: CastHooks) => {
@@ -108,6 +114,8 @@ const toRenderer = (d: GcDevice): Renderer => ({
   gcKind: d.kind,
   gcId: d.id,
   gcAuraScreen: d.auraScreen ?? null,
+  gcAuraFailed: d.auraFailed ?? false,
+  ip: d.ip ?? null,
   udn: `gcast:${d.id}`,
   name: d.name,
   model: d.model ?? d.description ?? undefined,
@@ -121,6 +129,53 @@ let gcReady: Promise<boolean> | null = null;
 let gcWaiter: { resolve: () => void; reject: (e: Error) => void } | null = null;
 let gcEnding = false;
 let gcLast: { state: string; sawPlaying: boolean; duration: number } = { state: '', sawPlaying: false, duration: 0 };
+/** URL of the song we last asked the Cast device to play: status for anything else is stale. */
+let gcUrl: string | null = null;
+/** After a seek, ignore positions from before it landed. */
+let seekHold: { target: number; until: number } | null = null;
+/** After the slider / a button changed the volume, ignore older volume reports for a moment. */
+let volumeHeldUntil = 0;
+/** Push the connect timeout out (Aura's screen fell back to Google's). */
+let gcExtend: (() => void) | null = null;
+
+const screenName = (aura?: boolean) => (aura ? 'Aura’s TV screen' : 'Google’s TV screen');
+
+function onGcSession(e: GcSessionEvent) {
+  const where = e.name ?? 'the Cast device';
+  if (e.state === 'connecting') logEvent('info', 'cast', `Connecting to ${where}`);
+  if (e.state === 'retrying') {
+    logEvent('warn', 'cast', e.error ?? `Retrying ${where}`, e.code != null ? `Cast status code ${e.code}` : undefined);
+    gcExtend?.();
+    if (e.error) hooks?.onNotice?.(e.error);
+  }
+  if (e.state === 'connected') {
+    useCast.setState({ screen: e.auraScreen ? 'aura' : 'google' });
+    const facts = [screenName(e.auraScreen), e.model, e.ip, e.appId ? `app ${e.appId}` : null].filter(Boolean).join(' · ');
+    logEvent('info', 'cast', `Connected to ${where} — ${facts}`);
+    gcWaiter?.resolve();
+  } else if (e.state === 'failed') {
+    gcWaiter?.reject(new Error(e.error ?? `Couldn’t connect to ${where}`));
+  }
+  if (e.state === 'connected' || e.state === 'failed') gcWaiter = null;
+  if (e.state === 'suspended') logEvent('warn', 'cast', `Connection to ${where} paused (phone went to sleep or Wi-Fi dropped) — reconnecting`);
+  const active = useCast.getState().active;
+  if (e.state === 'ended') {
+    if (e.error && !gcEnding) logEvent('error', 'cast', e.error, e.code != null ? `Cast status code ${e.code}` : undefined);
+    else logEvent('info', 'cast', `Cast to ${where} ended`);
+    if (isG(active) && !gcEnding) void disconnect().then(() => hooks?.onLost(e.error ?? `Disconnected from ${active!.name}`));
+  }
+}
+
+function onGcVolume(e: GcVolumeEvent) {
+  if (!isG(useCast.getState().active)) return;
+  const vol = Math.round(e.volume * 100);
+  if (e.fromKey) {
+    volumeHeldUntil = Date.now() + 1200;
+    useCast.setState({ volume: vol, muted: false, volumeHudAt: Date.now() });
+  } else if (Date.now() > volumeHeldUntil) {
+    useCast.setState({ volume: vol, muted: e.muted });
+  }
+}
 
 /** Initialise the Cast framework once and listen to its events. */
 function gcInit(): Promise<boolean> {
@@ -129,19 +184,9 @@ function gcInit(): Promise<boolean> {
     .gcInit()
     .then(() => {
       castNative!.addListener?.('onCastDevices', (e) => useCast.setState({ tvs: e.devices.map(toRenderer).sort((a, b) => a.name.localeCompare(b.name)) }));
-      castNative!.addListener?.('onCastSession', (e) => {
-        if (e.state === 'connected') {
-          useCast.setState({ screen: e.auraScreen ? 'aura' : 'google' });
-          gcWaiter?.resolve();
-        }
-        else if (e.state === 'failed') gcWaiter?.reject(new Error(e.error ?? 'Couldn’t connect'));
-        if (e.state === 'connected' || e.state === 'failed') gcWaiter = null;
-        const active = useCast.getState().active;
-        if (e.state === 'ended' && isG(active) && !gcEnding) {
-          void disconnect().then(() => hooks?.onLost(e.error ?? `Disconnected from ${active!.name}`));
-        }
-      });
+      castNative!.addListener?.('onCastSession', onGcSession);
       castNative!.addListener?.('onCastStatus', onGcStatus);
+      castNative!.addListener?.('onCastVolume', onGcVolume);
       return true;
     })
     .catch(() => false);
@@ -150,13 +195,17 @@ function gcInit(): Promise<boolean> {
 
 function onGcStatus(e: GcStatusEvent) {
   if (!isG(useCast.getState().active) || busy) return;
+  // Reports about the previous song (it was replaced, or finished just before a skip) must not
+  // move the progress bar or trigger "song ended" for the new one.
+  if (e.contentId && gcUrl && e.contentId !== gcUrl) return;
   const playing = e.state === 'playing';
   const buffering = e.state === 'buffering';
   if (playing) gcLast.sawPlaying = true;
   const duration = e.duration > 0 ? e.duration : gcLast.duration;
-  if (e.volume >= 0) useCast.setState({ volume: Math.round(e.volume * 100) });
+  if (e.volume >= 0 && Date.now() > volumeHeldUntil) useCast.setState({ volume: Math.round(e.volume * 100) });
   useCast.setState({ status: playing ? 'playing' : buffering ? 'buffering' : e.state === 'paused' ? 'paused' : e.state === 'idle' ? 'stopped' : useCast.getState().status });
-  if (playing || buffering || e.state === 'paused') hooks?.onProgress(e.position, duration, playing, buffering);
+  if (seekHold && (Date.now() > seekHold.until || Math.abs(e.position - seekHold.target) < 2.5)) seekHold = null;
+  if ((playing || buffering || e.state === 'paused') && !seekHold) hooks?.onProgress(e.position, duration, playing, buffering);
   const wasActive = gcLast.state === 'playing' || gcLast.state === 'buffering';
   gcLast = { ...gcLast, state: e.state, duration };
   if (e.state === 'idle' && wasActive && gcLast.sawPlaying && (e.idleReason === 'finished' || e.idleReason === 'error')) {
@@ -180,14 +229,74 @@ export async function watchGoogleCast(on: boolean) {
   } else if (!isG(useCast.getState().active)) castNative!.gcStopDiscovery?.();
 }
 
+const STALE = /isn't available any more|isn’t available any more/;
+
 async function gcConnect(dev: Renderer) {
   if (!(await gcInit()) || !dev.gcId) throw new Error('Google Cast isn’t available on this phone');
+  let timer: ReturnType<typeof setTimeout> | undefined;
   const connected = new Promise<void>((resolve, reject) => {
     gcWaiter = { resolve, reject };
-    setTimeout(() => reject(new Error(`${dev.name} didn’t answer`)), 20000);
+    const arm = (ms: number) => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => reject(new Error(`${dev.name} didn’t answer within ${Math.round(ms / 1000)} s — check it’s on and on the same Wi-Fi, or unplug it for 10 seconds`)), ms);
+    };
+    arm(20000);
+    gcExtend = () => arm(25000);
   });
-  await castNative!.gcConnect!(dev.gcId);
-  await connected;
+  connected.catch(() => undefined); // no "unhandled rejection" if the connect call below fails first
+  try {
+    try {
+      await castNative!.gcConnect!(dev.gcId);
+    } catch (e) {
+      // The list was out of date (the device restarted or changed address): look again, then retry once.
+      if (!(e instanceof Error && STALE.test(e.message))) throw e;
+      logEvent('warn', 'cast', `${dev.name} wasn’t in the current device list — searching again`);
+      const again = await findAgain(dev, 6000);
+      if (!again?.gcId) throw new Error(`${dev.name} isn’t on the network right now — check it’s powered on and on the same Wi-Fi`);
+      useCast.setState({ active: again, lastUdn: again.udn });
+      await castNative!.gcConnect!(again.gcId);
+    }
+    await connected;
+  } finally {
+    if (timer) clearTimeout(timer);
+    gcExtend = null;
+    gcWaiter = null;
+  }
+}
+
+/** Wait for a device (same id, or same name after a restart) to show up again in discovery. */
+async function findAgain(dev: Renderer, ms: number): Promise<Renderer | undefined> {
+  castNative!.gcStopDiscovery?.();
+  castNative!.gcStartDiscovery?.();
+  const until = Date.now() + ms;
+  while (Date.now() < until) {
+    const hit = useCast.getState().tvs.find((d) => d.gcId === dev.gcId) ?? useCast.getState().tvs.find((d) => d.name === dev.name);
+    if (hit) return hit;
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  return undefined;
+}
+
+/** Why the active Google Cast device can't play this song, or null. */
+export function castBlocker(t: Track): string | null {
+  if (!isG(useCast.getState().active)) return null;
+  if (t.local?.sampleRate && t.local.sampleRate > GCAST_MAX_RATE) return `${Math.round(t.local.sampleRate / 1000)} kHz`;
+  return null;
+}
+
+/** Lines for Settings → Diagnostics → Share. */
+export function castDiagnostics(): string[] {
+  const c = useCast.getState();
+  const lines = [
+    `casting: ${c.active ? `${c.active.name} (${c.active.kind === 'gcast' ? 'Google Cast' : 'DLNA'}) · ${c.status}${c.active.kind === 'gcast' ? ` · ${screenName(c.screen === 'aura')}` : ''}` : 'no'}`,
+  ];
+  if (googleCastSupported) lines.push(`tv screen: ${tvScreenAppId() ? `Aura (${tvScreenAppId()})` : 'Google'}`);
+  for (const d of c.tvs) {
+    const screen = d.gcAuraFailed ? 'Aura’s screen failed this run' : d.gcAuraScreen === false ? 'can’t run Aura’s screen yet' : d.gcAuraScreen ? 'runs Aura’s screen' : 'Google’s screen';
+    lines.push(`  cast device: ${d.name} · ${d.model ?? '?'} · ${d.ip ?? 'no IP'} · ${screen}`);
+  }
+  for (const d of c.devices) lines.push(`  dlna device: ${d.name} · ${[d.manufacturer, d.model].filter(Boolean).join(' ') || '?'}`);
+  return lines;
 }
 
 /** Aura's TV screen: the Cast App ID registered for /cast/receiver ("" = Google's default screen). */
@@ -259,7 +368,9 @@ export async function disconnect(): Promise<void> {
   const dev = useCast.getState().active;
   stopPolling();
   loadSeq++;
-  useCast.setState({ active: null, status: 'idle', volume: null });
+  useCast.setState({ active: null, status: 'idle', volume: null, screen: undefined });
+  gcUrl = null;
+  seekHold = null;
   if (!castNative) return;
   if (isG(dev)) {
     gcEnding = true;
@@ -294,6 +405,8 @@ export async function load(t: Track, startAt = 0, autoplay = true): Promise<bool
         throw new Error(`Google Cast plays up to 96 kHz, this file is ${Math.round(t.local.sampleRate / 1000)} kHz — play it on a DLNA receiver instead`);
       }
       gcLast = { state: 'buffering', sawPlaying: false, duration: t.durationMs / 1000 };
+      gcUrl = url;
+      seekHold = null;
       const p = usePlayer.getState();
       const upNext = p.queue[p.index]?.id === t.id ? p.queue[p.index + 1] : undefined;
       const tv = await tvData(t, upNext);
@@ -312,6 +425,7 @@ export async function load(t: Track, startAt = 0, autoplay = true): Promise<bool
       };
       await native().gcLoad!(JSON.stringify(load));
       if (seq !== loadSeq) return false;
+      logEvent('info', 'cast', `Playing “${t.title}” on ${dev.name}${t.local ? ` (${[t.local.format, t.local.sampleRate ? `${t.local.sampleRate / 1000} kHz` : null].filter(Boolean).join(', ')})` : ''}`);
       useCast.setState({ status: autoplay ? 'buffering' : 'paused' });
       // Lyrics that took longer (network / identification) go to the TV screen as a message.
       if (!tv.data.lyrics) {
@@ -391,7 +505,13 @@ export const pause = () =>
     else await soap(d, 'av', 'Pause', { InstanceID: 0 });
     useCast.setState({ status: 'paused' });
   });
-export const seek = (sec: number) => withDevice(async (d) => (isG(d) ? native().gcSeek?.(sec) : soap(d, 'av', 'Seek', { InstanceID: 0, Unit: 'REL_TIME', Target: formatTime(sec) })));
+export const seek = (sec: number) =>
+  withDevice(async (d) => {
+    if (isG(d)) {
+      seekHold = { target: sec, until: Date.now() + 2500 };
+      native().gcSeek?.(sec);
+    } else await soap(d, 'av', 'Seek', { InstanceID: 0, Unit: 'REL_TIME', Target: formatTime(sec) });
+  });
 
 export async function refreshVolume() {
   const dev = useCast.getState().active;
@@ -409,6 +529,7 @@ let volTimer: ReturnType<typeof setTimeout> | null = null;
 /** 0–100. Debounced so dragging a slider doesn't flood the receiver. */
 export function setVolume(v: number) {
   const vol = Math.round(Math.min(100, Math.max(0, v)));
+  volumeHeldUntil = Date.now() + 1500;
   useCast.setState({ volume: vol });
   if (volTimer) clearTimeout(volTimer);
   volTimer = setTimeout(() => {

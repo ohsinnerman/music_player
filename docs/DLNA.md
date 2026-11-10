@@ -48,10 +48,22 @@ Aura (phone)                                         Receiver (DLNA MediaRendere
   uses) — FLAC stays FLAC. Cast devices play FLAC up to 24-bit / 96 kHz, WAV, MP3, AAC, Opus, Vorbis.
   Catalog songs are relayed by the phone.
 - Play / pause / seek / next / volume work from Aura; when a song finishes the next one is loaded.
+  Status that belongs to the previous song (it was replaced, or ended just before a skip) is ignored,
+  so skipping never double-skips or makes the progress bar jump back.
+- **Volume buttons:** while a Cast session is up, the phone's volume buttons change the Cast
+  device's volume in 5 % steps (also while paused), with a small overlay showing the level — the
+  phone's own volume stays untouched. In the background the Cast framework's media session takes
+  them. Changes from the TV remote / Google Home / another phone move Aura's slider too
+  (`VolumeKeys.kt`, `CastVolumeHud.tsx`).
 - Needs Google Play services. Code: `modules/aura-cast/…/GoogleCast.kt` (Cast framework 22.x),
   `src/cast/session.ts` (`kind: 'gcast'`).
-- Every Google Cast device decodes **up to 96 kHz**. A 176.4 / 192 kHz file is skipped with a message
-  ("play it on a DLNA receiver instead") rather than failing silently.
+- Every Google Cast device decodes **up to 96 kHz**. 176.4 / 192 kHz files are stepped over in one
+  go with a single message ("Skipped 3 songs (192 kHz) — Google Cast plays up to 96 kHz") rather than
+  failing silently. If the device rejects 3 songs in a row for any other reason, Aura stops and says
+  so instead of running through the queue.
+- **Errors in plain words:** Cast status codes are translated (with Cast's own reason code), e.g.
+  "Bedroom TV ended the cast — <reason> (code 2160)", where the reason comes from
+  `CastContext.getCastReasonCodeForCastStatusCode` and `CastStatusCodes.getStatusCodeString`.
 
 ### Aura on the TV (custom Cast screen)
 
@@ -76,6 +88,11 @@ right, the current line in white.
 2. While it's unpublished, add your Chromecast's serial number as a test device and restart the
    Chromecast (~15 min to apply). Publishing it later makes it work on any Chromecast.
 3. Paste the 8-character App ID into Aura. Leave it empty to go back to Google's screen.
+
+The TV screen sheet lists your Cast devices with their IP address and whether each one shows Aura's
+screen. A device that can't run it yet (not registered, not restarted) still appears and plays with
+Google's screen. If Aura's screen fails to start on a device, Aura retries straight away with
+Google's screen (and says so), and keeps using Google's screen on that device until the app restarts.
 
 ## Yamaha MusicCast remote
 
@@ -129,5 +146,9 @@ Multichannel FLAC over the network depends on the receiver; if it refuses a file
   on the same band. Tap the refresh button to search again.
 - **Found but won't play:** the receiver couldn't fetch from the phone — a VPN or "private DNS"
   profile on the phone can block local connections; turn it off and retry.
+- **Google Cast: "ended the cast" / "Couldn't connect"** — the message names the reason. Restart the
+  Chromecast (unplug 10 s) and check it's on the same Wi-Fi. For Aura's TV screen, check the serial
+  number in the Cast console. Settings → Diagnostics → Share includes a *Casting* section (devices,
+  IPs, which screen each runs) for bug reports.
 - **Stops when the screen is off:** some phones (Xiaomi, Oppo, Vivo…) kill background apps
   aggressively. Allow Aura to "run in background" / disable battery optimisation for it.
