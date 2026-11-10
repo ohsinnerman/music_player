@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.glass.GlassOptics
 import dev.chrisbanes.haze.glass.GlassStyle
 import dev.chrisbanes.haze.glass.OpticalSizeValue
 import dev.chrisbanes.haze.glass.SurfaceProfile
@@ -120,7 +121,7 @@ class HazeGlassView(context: Context, appContext: AppContext) : ExpoView(context
       val style = base.material3(tint = null).then {
         shape(RoundedCornerShape(p.cornerRadiusDp.dp))
         surfaceProfile(SurfaceProfile.Squircle)
-        optics { o ->
+        optics { o: GlassOptics ->
           o.copy(
             blurRadius = OpticalSizeValue.Fixed(p.blurDp.dp),
             refractionStrength = o.refractionStrength * p.refraction.coerceIn(0f, 1.2f),
