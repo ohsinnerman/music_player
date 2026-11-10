@@ -1,6 +1,8 @@
 # Changelog
 
-## 1.1.0-beta — in progress
+## 1.2.3-beta — 2026-11-10
+
+The 1.1.0-beta line so far (from here on every commit bumps the version by one, see CLAUDE.md).
 
 Focus: speed, stability, sound quality, receivers, library.
 
