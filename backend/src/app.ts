@@ -12,6 +12,7 @@ import { createProviders } from './providers/registry.js';
 import { createTokenService } from './security/tokens.js';
 import { createCatalogService } from './services/catalog.js';
 import { createGroq } from './services/groq.js';
+import { RECEIVER_HTML } from './cast/receiver.js';
 import { createAutoEqService } from './services/autoeq.js';
 import { createEnrichService } from './services/enrich.js';
 import { createIdentifyService } from './services/identify.js';
@@ -126,6 +127,27 @@ export function buildApp({ env, store, logger, fetchImpl }: AppDeps): BuiltApp {
 
   app.get('/', (_req, res) => {
     res.json({ name: 'Aura Music API', docs: 'https://github.com/ohsinnerman/music_player/tree/main/docs', health: '/v1/health' });
+  });
+  // Aura's Google Cast TV screen (a web page the Chromecast loads). The one HTML route, so it gets
+  // its own CSP: the Cast framework from gstatic, the phone's LAN media / artwork, and the
+  // Chromecast's local websocket.
+  app.get(['/cast/receiver', '/cast/receiver.html'], (_req, res) => {
+    res.setHeader(
+      'Content-Security-Policy',
+      [
+        "default-src 'none'",
+        "script-src 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com",
+        "style-src 'unsafe-inline'",
+        'img-src * data: blob:',
+        'media-src * data: blob:',
+        'connect-src * ws: wss:',
+        'font-src * data:',
+        "base-uri 'none'",
+        "form-action 'none'",
+      ].join('; '),
+    );
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.type('html').send(RECEIVER_HTML);
   });
   app.use('/v1', createRoutes({ env, store: db, tokens, catalog, lyrics, identify, autoeq, enrich }));
   app.use(notFoundHandler);

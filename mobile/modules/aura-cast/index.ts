@@ -51,6 +51,8 @@ export interface GcLoad {
   duration?: number;
   startAt?: number;
   autoplay?: boolean;
+  /** For Aura's TV screen: { aura: 1, palette, quality, lyrics, next }. */
+  customData?: Record<string, unknown>;
 }
 
 interface Native {
@@ -61,6 +63,9 @@ interface Native {
   gcConnect?(id: string): Promise<boolean>;
   gcDisconnect?(): void;
   gcLoad?(o: GcLoad): Promise<boolean>;
+  gcSetReceiver?(appId: string): Promise<string>;
+  gcReceiver?(): string;
+  gcSend?(json: string): void;
   gcPlay?(): void;
   gcPause?(): void;
   gcSeek?(sec: number): void;

@@ -11,6 +11,8 @@ import { useAuth } from '@/auth/store';
 import { openCastSheet } from '@/components/cast/CastSheet';
 import { GlassControl } from '@/components/settings/GlassControl';
 import { Group, Row, Toggle } from '@/components/settings/Rows';
+import { openTvScreenSheet } from '@/components/cast/TvScreenSheet';
+import { gcastAvailable } from '@/cast/session';
 import { hazeGlassSupported } from '../../modules/aura-liquid-glass';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
@@ -318,6 +320,7 @@ export default function Settings() {
 
         <Group title="Play on TVs & speakers" footer="Google Cast (Chromecast, Google TV, Nest, Cast TVs) and DLNA receivers / speakers (Yamaha MusicCast, Denon / Marantz HEOS, Sonos, smart TVs…) get the original file — no transcoding, and Android’s audio mixer is bypassed. MusicCast receivers also get a remote.">
           <Row label="Choose a TV, speaker or receiver" onPress={openCastSheet} />
+          {gcastAvailable ? <Row label="TV screen" hint="Aura’s own Chromecast screen with lyrics" onPress={openTvScreenSheet} /> : null}
         </Group>
 
         <Group title="Songs on this phone" footer="When a song’s tags and file name aren’t enough, Aura can send a 20-second clip to your server, which asks an AI to recognise it and fetch the lyrics. Clips aren’t stored.">

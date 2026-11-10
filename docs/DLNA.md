@@ -50,6 +50,32 @@ Aura (phone)                                         Receiver (DLNA MediaRendere
 - Play / pause / seek / next / volume work from Aura; when a song finishes the next one is loaded.
 - Needs Google Play services. Code: `modules/aura-cast/…/GoogleCast.kt` (Cast framework 22.x),
   `src/cast/session.ts` (`kind: 'gcast'`).
+- Every Google Cast device decodes **up to 96 kHz**. A 176.4 / 192 kHz file is skipped with a message
+  ("play it on a DLNA receiver instead") rather than failing silently.
+
+### Aura on the TV (custom Cast screen)
+
+Instead of Google's plain player, the Chromecast can show **Aura's own screen**, like Apple Music's:
+the cover on a background made from its colours, the title and artist, a quality badge
+(`HI-RES 24/96`, `LOSSLESS 16/44.1`), a progress bar with elapsed / remaining time, *Up next* near the
+end of a song, and — when the song has synced lyrics — the cover moves left and the lyrics scroll on the
+right, the current line in white.
+
+- It's a Cast *Custom Web Receiver*: a web page the Chromecast loads, served by the Aura server at
+  **`/cast/receiver`** (`backend/src/cast/receiver.ts`). Preview it in any browser at
+  `/cast/receiver?demo=1` (add `&lyrics=1` for the lyrics layout).
+- Built for the slowest device: the 1st-gen Chromecast (2013, model H2G2-2A) — plain ES2015, no blur
+  or backdrop filters, only opacity / transform animations, no extra players downloaded.
+- The phone sends the extras in the load request's `customData` (`src/cast/tvScreen.ts`); lyrics that
+  arrive later (network / AI identification) follow as a message on `urn:x-cast:app.aura`.
+
+**Set-up (once):** Settings → Play on TVs & speakers → **TV screen** walks through it:
+
+1. In the [Google Cast SDK Developer Console](https://cast.google.com/publish) (one-time US$5), add a
+   **Custom Receiver** named Aura with the Receiver URL `https://<your server>/cast/receiver`.
+2. While it's unpublished, add your Chromecast's serial number as a test device and restart the
+   Chromecast (~15 min to apply). Publishing it later makes it work on any Chromecast.
+3. Paste the 8-character App ID into Aura. Leave it empty to go back to Google's screen.
 
 ## Yamaha MusicCast remote
 

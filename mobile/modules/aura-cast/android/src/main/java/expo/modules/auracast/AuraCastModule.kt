@@ -64,6 +64,18 @@ class AuraCastModule : Module() {
       GoogleCast.load(o) { err -> if (err == null) promise.resolve(true) else promise.reject("ERR_GCAST_LOAD", err, null) }
     }
 
+    /** Aura's TV screen App ID ("" = Google's Default Media Receiver). Resolves with the ID in use. */
+    AsyncFunction("gcSetReceiver") { id: String, promise: Promise ->
+      GoogleCast.setReceiverAppId(context, id) { promise.resolve(it) }
+    }
+
+    Function("gcReceiver") { GoogleCast.receiverAppId(context) }
+
+    Function("gcSend") { json: String ->
+      GoogleCast.send(json)
+      Unit
+    }
+
     Function("gcPlay") {
       GoogleCast.play()
       Unit

@@ -49,13 +49,17 @@ export const useSearch = (q: string) =>
 export const useAlbum = (id: string) => useQuery({ queryKey: qk.album(id), queryFn: () => endpoints.album(id), enabled: !!id });
 export const useArtist = (id: string) => useQuery({ queryKey: qk.artist(id), queryFn: () => endpoints.artist(id), enabled: !!id });
 export const usePlaylist = (id: string) => useQuery({ queryKey: qk.playlist(id), queryFn: () => endpoints.playlist(id), enabled: !!id });
+// Imported songs: embedded → cached → identify (tags / AI) → listen.
+const lyricsFn = (track: Track, signal?: AbortSignal) => (track.local ? getLocalLyrics(track) : endpoints.lyrics(track.id, signal));
 export const useLyrics = (track: Track | undefined) =>
   useQuery({
     queryKey: qk.lyrics(track?.id ?? ''),
-    // Imported songs: embedded → cached → identify (tags / AI) → listen.
-    queryFn: ({ signal }) => (track!.local ? getLocalLyrics(track!) : endpoints.lyrics(track!.id, signal)),
+    queryFn: ({ signal }) => lyricsFn(track!, signal),
     enabled: !!track,
     staleTime: Infinity,
     retry: false,
   });
+/** Same cache as useLyrics, outside React (the TV screen asks while casting). */
+export const fetchLyrics = (track: Track) =>
+  queryClient.fetchQuery({ queryKey: qk.lyrics(track.id), queryFn: ({ signal }) => lyricsFn(track, signal), staleTime: Infinity, retry: false });
 export const useServerConfig = () => useQuery({ queryKey: qk.config, queryFn: endpoints.config, staleTime: 10 * 60_000, retry: false });

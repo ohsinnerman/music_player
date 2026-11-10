@@ -19,6 +19,7 @@ import { PressableScale } from '../ui/PressableScale';
 import { openSheet } from '../ui/Sheet';
 import { Text } from '../ui/Text';
 import { openReceiverSheet } from './ReceiverSheet';
+import { openTvScreenSheet } from './TvScreenSheet';
 
 /** "Play on…" — this phone, Google Cast TVs & speakers, or DLNA receivers on the Wi-Fi. */
 export function openCastSheet() {
@@ -238,6 +239,11 @@ function NowPlayingOn({ dev, onPhone }: { dev: Renderer; onPhone: () => void }) 
         {dev.yxc ? (
           <View style={{ flex: 1 }}>
             <Button title="Receiver" variant="secondary" onPress={() => openReceiverSheet(dev)} />
+          </View>
+        ) : null}
+        {dev.kind === 'gcast' ? (
+          <View style={{ flex: 1 }}>
+            <Button title="TV screen" variant="secondary" onPress={openTvScreenSheet} />
           </View>
         ) : null}
         <View style={{ flex: 1 }}>

@@ -28,6 +28,10 @@ Focus: speed, stability, sound quality, receivers, library.
   - Albums and Artists shelves and pages for the songs on your phone
   - Covers for albums without art, artist photos, year, label, genres and Wikipedia summaries (Deezer, MusicBrainz / Cover Art Archive, Wikipedia; AI only disambiguates); cached for offline use
   - "Is it really lossless?" check: spots FLACs made from MP3/AAC, upsampled Hi-Res and 24-bit padded from 16-bit
+- Aura's own Chromecast / Google TV screen (custom Cast receiver at `/cast/receiver`): cover on its
+  colours, quality badge, progress, up next and synced lyrics; light enough for the 1st-gen Chromecast.
+  Set up in Settings → TV screen (needs a Cast App ID). Files above 96 kHz now give a clear message on
+  Google Cast instead of failing silently.
 - Android Liquid Glass now drawn by Haze 2.1 (`haze-glass` + Material 3 Glass Style): refraction,
   depth blur, specular, edge light and chromatic aberration on every glass surface (Android 13+;
   Settings → Haze glass switches back to Aura's own lens). The app now builds with Kotlin 2.3.20.

@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware';
 import { playUrl } from '@/api/client';
 import type { Track } from '@/api/types';
 import { persistStorage } from '@/lib/storage';
+import { usePlayer } from '@/player/store';
+import { GCAST_MAX_RATE, tvData } from './tvScreen';
 import { castNative, type GcDevice, type GcStatusEvent, googleCastSupported } from '../../modules/aura-cast';
 import { AVT, MEDIA_RENDERER, RC, type Renderer, describeFault, didl, formatTime, mimeFor, parseDescription, parseSoapResponse, parseTime, soapEnvelope, soapHeaders } from './upnp';
 
@@ -177,6 +179,19 @@ async function gcConnect(dev: Renderer) {
   await connected;
 }
 
+/** Aura's TV screen: the Cast App ID registered for /cast/receiver ("" = Google's default screen). */
+export function tvScreenAppId(): string {
+  const id = castNative?.gcReceiver?.() ?? '';
+  return id === 'CC1AD845' ? '' : id;
+}
+
+export async function setTvScreenAppId(appId: string): Promise<string> {
+  if (!castNative?.gcSetReceiver) throw new Error('Needs the latest Android app');
+  await gcInit();
+  const id = await castNative.gcSetReceiver(appId.trim().toUpperCase());
+  return id === 'CC1AD845' ? '' : id;
+}
+
 /* ───────────────────────── Session ───────────────────────── */
 
 let poll: ReturnType<typeof setInterval> | null = null;
@@ -263,8 +278,17 @@ export async function load(t: Track, startAt = 0, autoplay = true): Promise<bool
     const { url, art } = serveTrack(t);
     const { mime } = mediaFor(t);
     if (isG(dev)) {
+      // Every Google Cast device decodes up to 96 kHz; say so instead of a silent failure.
+      if (t.local?.sampleRate && t.local.sampleRate > GCAST_MAX_RATE) {
+        throw new Error(`Google Cast plays up to 96 kHz, this file is ${Math.round(t.local.sampleRate / 1000)} kHz — play it on a DLNA receiver instead`);
+      }
       gcLast = { state: 'buffering', sawPlaying: false, duration: t.durationMs / 1000 };
+      const p = usePlayer.getState();
+      const upNext = p.queue[p.index]?.id === t.id ? p.queue[p.index + 1] : undefined;
+      const tv = await tvData(t, upNext);
+      if (seq !== loadSeq) return false;
       await native().gcLoad!({
+        customData: { ...tv.data },
         url,
         mime,
         title: t.title,
@@ -277,6 +301,12 @@ export async function load(t: Track, startAt = 0, autoplay = true): Promise<bool
       });
       if (seq !== loadSeq) return false;
       useCast.setState({ status: autoplay ? 'buffering' : 'paused' });
+      // Lyrics that took longer (network / identification) go to the TV screen as a message.
+      if (!tv.data.lyrics) {
+        void tv.later.then((lyrics) => {
+          if (lyrics && seq === loadSeq && isG(useCast.getState().active)) native().gcSend?.(JSON.stringify({ type: 'lyrics', contentId: url, lyrics }));
+        });
+      }
       return true;
     }
     const meta = didl({
