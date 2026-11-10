@@ -78,7 +78,21 @@ actions (play/pause, like, tab switch, success/error).
 RenderNode blur via `BlurTargetView`), `inline` variant (inside scroll views) uses a frosted fill on
 Android to avoid recursive blur.
 
-**Liquid Glass engine (Android)** — `mobile/modules/aura-liquid-glass`, our own GPU lens.
+**Liquid Glass engine (Android 13+): Haze** — `mobile/modules/aura-liquid-glass` → `HazeGlassView`.
+Glass is drawn by [Haze](https://github.com/chrisbanes/haze) 2.1 (`haze-glass` +
+`haze-glass-material3`): refraction with a squircle surface profile, depth blur, specular highlight,
+ambient edge (Fresnel) response, edge shadow and chromatic aberration, styled with
+`GlassStyle.clear` / `GlassStyle.regular` + `.material3()` (Material 3 surface from Aura's theme).
+Haze is Jetpack Compose, so each glass surface hosts a small `ComposeView`: one box marked
+`hazeSource` draws the page behind it — the `RenderNode` expo-blur's `BlurTarget` already records,
+shifted under the glass and padded 24 dp on every side so the rim has real content to bend — and a
+second box applies `Modifier.hazeGlass(HazeInput.Sources(state), style)`. The Glass slider maps onto it:
+Clear style at the liquid end, Regular past ~⅓, blur radius / refraction / dispersion / specular
+following `lens(level)`, and Aura's material tint taking it on to frosted and opaque. Settings →
+**Haze glass** switches back to Aura's own lens below. Requires Kotlin 2.4 (set through
+`expo-build-properties`, matching Haze's build).
+
+**Aura lens (fallback, Android 12+)** — `LiquidGlassView` in the same module, our own GPU lens.
 
 ![Liquid Glass (top) vs Frosted (bottom), shader simulated on a screenshot](screenshots/liquid-glass-lens.png)
 
@@ -93,7 +107,7 @@ bitmaps, no software capture, no per-frame allocations.
 
 | Android | What you get |
 |---|---|
-| 13+ (API 33) | Blur + refraction + dispersion + specular rim (full Liquid Glass) |
+| 13+ (API 33) | Haze Material 3 Glass (or Aura's lens: blur + refraction + dispersion + specular rim) |
 | 12 (API 31–32) | GPU blur through the same pipeline |
 | ≤ 11 | Frosted fill (JS) |
 

@@ -86,6 +86,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-build-properties',
       {
         android: {
+          // Haze (glass) is built with Kotlin 2.4; its metadata needs a 2.3+ compiler.
+          kotlinVersion: '2.4.21',
           usesCleartextTraffic: allowCleartext,
           enableMinifyInReleaseBuilds: true,
           enableShrinkResourcesInReleaseBuilds: true,

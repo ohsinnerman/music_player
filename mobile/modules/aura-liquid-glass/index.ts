@@ -32,3 +32,28 @@ if (liquidGlassSupported) {
 }
 
 export const LiquidGlassNativeView = View;
+
+/** Haze glass (chrisbanes/haze `haze-glass` + Material 3): the lens props plus style and theme. */
+export interface HazeGlassNativeProps extends LiquidGlassNativeProps {
+  /** Haze's Clear style (liquid) or Regular (more frosted). */
+  glassStyle: 'clear' | 'regular';
+  dark: boolean;
+  /** Material 3 surface colour, #RRGGBB. */
+  surfaceColor: string;
+}
+
+const haze = requireOptionalNativeModule<{ supported: boolean }>('AuraHazeGlass');
+
+/** True on Android 13+ builds that include Haze. */
+export const hazeGlassSupported = !!haze?.supported;
+
+let Haze: ComponentType<HazeGlassNativeProps> | null = null;
+if (hazeGlassSupported) {
+  try {
+    Haze = requireNativeView<HazeGlassNativeProps>('AuraHazeGlass');
+  } catch {
+    Haze = null;
+  }
+}
+
+export const HazeGlassNativeView = Haze;

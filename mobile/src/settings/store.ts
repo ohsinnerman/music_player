@@ -36,6 +36,8 @@ interface SettingsState {
   setGlass: (v: number) => void;
   /** Animated artwork background in the player. */
   livingBackground: boolean;
+  /** Android 13+: draw glass with Haze (Material 3 Glass) instead of Aura's own lens. */
+  hazeGlass: boolean;
   /** Let the server "listen" to a short clip of an imported song to identify it. */
   aiListen: boolean;
   recentSearches: string[];
@@ -43,7 +45,7 @@ interface SettingsState {
   setThemeMode: (m: ThemeMode) => void;
   setServerUrl: (url: string) => void;
   setOnboarded: (v: boolean) => void;
-  toggle: (key: 'haptics' | 'livingBackground' | 'aiListen') => void;
+  toggle: (key: 'haptics' | 'livingBackground' | 'aiListen' | 'hazeGlass') => void;
   pushRecentSearch: (q: string) => void;
   clearRecentSearches: () => void;
 }
@@ -57,6 +59,7 @@ export const useSettings = create<SettingsState>()(
       glass: 0,
       setGlass: (v) => set({ glass: Math.min(1, Math.max(0, Math.round(v * 1000) / 1000)) }),
       livingBackground: true,
+      hazeGlass: true,
       aiListen: true,
       recentSearches: [],
       themeMode: 'system',
@@ -85,7 +88,8 @@ export const useSettings = create<SettingsState>()(
         }
         return s as unknown as SettingsState;
       },
-      partialize: ({ serverUrl, onboarded, haptics, glass, livingBackground, aiListen, recentSearches, themeMode }) => ({
+      partialize: ({ serverUrl, onboarded, haptics, glass, livingBackground, hazeGlass, aiListen, recentSearches, themeMode }) => ({
+        hazeGlass,
         glass,
         aiListen,
         themeMode,

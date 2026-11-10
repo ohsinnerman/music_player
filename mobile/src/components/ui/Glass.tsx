@@ -9,7 +9,7 @@ import { BLUR_OFF_AT, glassLevel, lens, material } from '@/lib/glass';
 import { usePlayerUi } from '@/player/ui';
 import { useSettings } from '@/settings/store';
 import { useColors } from '@/theme';
-import { LiquidGlassNativeView } from '../../../modules/aura-liquid-glass';
+import { HazeGlassNativeView, LiquidGlassNativeView } from '../../../modules/aura-liquid-glass';
 
 /** iOS 26+: Apple's own Liquid Glass (UIGlassEffect) — real refraction, highlights and motion. */
 const IOS_GLASS = Platform.OS === 'ios' && (() => {
@@ -71,7 +71,12 @@ export const Glass = memo(function Glass({
   // Android 12+: our GPU lens (blur → AGSL refraction/dispersion/specular on 13+) over the
   // same recorded page content expo-blur uses. Otherwise expo-blur, else a frosted fill.
   const appleGlass = IOS_GLASS && level < BLUR_OFF_AT;
-  const nativeLens = appleGlass || (android && !!LiquidGlassNativeView && canBlur && level < BLUR_OFF_AT);
+  // Android 13+: Haze's Glass effect with a Material 3 Glass Style (Settings → Haze glass).
+  const useHaze = useSettings((s) => s.hazeGlass);
+  const hazeGlass = android && useHaze && !!HazeGlassNativeView && canBlur && level < BLUR_OFF_AT;
+  // Apple's glass and Haze draw their own rim, specular and edge light.
+  const ownChrome = appleGlass || hazeGlass;
+  const nativeLens = ownChrome || (android && !!LiquidGlassNativeView && canBlur && level < BLUR_OFF_AT);
   const realBlur = canBlur && level < BLUR_OFF_AT;
   const optics = nativeLens ? lens(level, intensity) : null;
   const dark = colors.scheme === 'dark';
@@ -92,6 +97,19 @@ export const Glass = memo(function Glass({
           glassEffectStyle={{ style: level < 0.35 ? 'clear' : 'regular', animate: true }}
           colorScheme={dark ? 'dark' : 'light'}
           tintColor={tint}
+        />
+      ) : hazeGlass && HazeGlassNativeView && optics ? (
+        <HazeGlassNativeView
+          pointerEvents="none"
+          style={StyleSheet.absoluteFill}
+          cornerRadius={radius}
+          blur={optics.blur}
+          refraction={optics.refraction}
+          dispersion={optics.dispersion}
+          specular={optics.specular}
+          glassStyle={level < 0.35 ? 'clear' : 'regular'}
+          dark={dark}
+          surfaceColor={/^#[0-9a-f]{6}$/i.test(colors.bg) ? colors.bg : dark ? '#121218' : '#F7F7FA'}
         />
       ) : nativeLens && LiquidGlassNativeView && optics ? (
         <LiquidGlassNativeView
@@ -116,8 +134,8 @@ export const Glass = memo(function Glass({
       {/* material: solid colour whose opacity sweeps liquid → frosted → opaque */}
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: colors.glassBase }, tintStyle]} />
       {tint && !appleGlass ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: tint }]} /> : null}
-      {/* Apple's glass draws its own rim, highlights and sheen. */}
-      {rim && !appleGlass ? (
+      {/* Apple's glass and Haze draw their own rim, highlights and sheen. */}
+      {rim && !ownChrome ? (
         <>
           {/* light bouncing off the lower edge: the "liquid" look, gone by frosted */}
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, glowStyle]}>

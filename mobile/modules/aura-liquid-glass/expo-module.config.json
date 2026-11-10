@@ -1,6 +1,7 @@
 {
   "platforms": ["android"],
+  "coreFeatures": ["compose"],
   "android": {
-    "modules": ["expo.modules.auraliquidglass.AuraLiquidGlassModule"]
+    "modules": ["expo.modules.auraliquidglass.AuraLiquidGlassModule", "expo.modules.auraliquidglass.AuraHazeGlassModule"]
   }
 }
