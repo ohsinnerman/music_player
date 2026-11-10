@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.4-beta — 2026-11-10
+
+Google Cast fixes from the first real Chromecast test.
+
+- Fixed: the Google Cast device list was read off the main thread ("Must be called from the main thread"); the list is now cached by the main thread and read from there.
+- Fixed: casting failed with "Cannot convert '[object Object]' to a Kotlin type" — the load request (with lyrics / up next that can be null) now goes to the native side as JSON.
+- Fixed: setting Aura's TV screen App ID hid every Chromecast that can't run it yet (unpublished app, device not registered or not restarted). Devices now always show up; ones that can't run Aura's screen play with Google's screen, and the picker says so.
+- TV screen sheet lists your Cast devices and whether each one shows Aura's screen yet.
+- The "Playing on" card says which TV screen the session uses.
+
 ## 1.2.3-beta — 2026-11-10
 
 The 1.1.0-beta line so far (from here on every commit bumps the version by one, see CLAUDE.md).

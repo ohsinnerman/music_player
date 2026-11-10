@@ -5,7 +5,7 @@ import type { Track } from '@/api/types';
 import { persistStorage } from '@/lib/storage';
 import { usePlayer } from '@/player/store';
 import { GCAST_MAX_RATE, tvData } from './tvScreen';
-import { castNative, type GcDevice, type GcStatusEvent, googleCastSupported } from '../../modules/aura-cast';
+import { castNative, type GcDevice, type GcLoad, type GcStatusEvent, googleCastSupported } from '../../modules/aura-cast';
 import { AVT, MEDIA_RENDERER, RC, type Renderer, describeFault, didl, formatTime, mimeFor, parseDescription, parseSoapResponse, parseTime, soapEnvelope, soapHeaders } from './upnp';
 
 /**
@@ -26,6 +26,8 @@ interface CastState {
   status: CastStatus;
   volume: number | null;
   error?: string;
+  /** Google Cast: which screen the TV shows for this session. */
+  screen?: 'aura' | 'google';
   /** Last receiver used, offered first next time. */
   lastUdn?: string;
 }
@@ -105,6 +107,7 @@ const toRenderer = (d: GcDevice): Renderer => ({
   kind: 'gcast',
   gcKind: d.kind,
   gcId: d.id,
+  gcAuraScreen: d.auraScreen ?? null,
   udn: `gcast:${d.id}`,
   name: d.name,
   model: d.model ?? d.description ?? undefined,
@@ -127,7 +130,10 @@ function gcInit(): Promise<boolean> {
     .then(() => {
       castNative!.addListener?.('onCastDevices', (e) => useCast.setState({ tvs: e.devices.map(toRenderer).sort((a, b) => a.name.localeCompare(b.name)) }));
       castNative!.addListener?.('onCastSession', (e) => {
-        if (e.state === 'connected') gcWaiter?.resolve();
+        if (e.state === 'connected') {
+          useCast.setState({ screen: e.auraScreen ? 'aura' : 'google' });
+          gcWaiter?.resolve();
+        }
         else if (e.state === 'failed') gcWaiter?.reject(new Error(e.error ?? 'Couldn’t connect'));
         if (e.state === 'connected' || e.state === 'failed') gcWaiter = null;
         const active = useCast.getState().active;
@@ -165,7 +171,12 @@ export async function watchGoogleCast(on: boolean) {
   if (!(await gcInit())) return;
   if (on) {
     castNative!.gcStartDiscovery?.();
-    useCast.setState({ tvs: (castNative!.gcDevices?.() ?? []).map(toRenderer) });
+    try {
+      const now = castNative!.gcDevices?.() ?? [];
+      if (now.length) useCast.setState({ tvs: now.map(toRenderer).sort((a, b) => a.name.localeCompare(b.name)) });
+    } catch {
+      // older APK read MediaRouter off the main thread; the onCastDevices event fills the list
+    }
   } else if (!isG(useCast.getState().active)) castNative!.gcStopDiscovery?.();
 }
 
@@ -287,7 +298,7 @@ export async function load(t: Track, startAt = 0, autoplay = true): Promise<bool
       const upNext = p.queue[p.index]?.id === t.id ? p.queue[p.index + 1] : undefined;
       const tv = await tvData(t, upNext);
       if (seq !== loadSeq) return false;
-      await native().gcLoad!({
+      const load: GcLoad = {
         customData: { ...tv.data },
         url,
         mime,
@@ -298,7 +309,8 @@ export async function load(t: Track, startAt = 0, autoplay = true): Promise<bool
         duration: t.durationMs ? t.durationMs / 1000 : undefined,
         startAt,
         autoplay,
-      });
+      };
+      await native().gcLoad!(JSON.stringify(load));
       if (seq !== loadSeq) return false;
       useCast.setState({ status: autoplay ? 'buffering' : 'paused' });
       // Lyrics that took longer (network / identification) go to the TV screen as a message.

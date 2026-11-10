@@ -25,7 +25,6 @@ import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.common.images.WebImage
 import java.util.concurrent.Executors
-import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -50,7 +49,8 @@ class AuraCastOptionsProvider : OptionsProvider {
  * receivers, speaker groups). Discovery goes through MediaRouter; selecting a
  * route makes the Cast framework start a session, after which songs are loaded
  * into the Default Media Receiver by URL (the phone's media server for local
- * files). All framework calls happen on the main thread.
+ * files). All framework and MediaRouter calls happen on the main thread;
+ * the only thing JS reads synchronously is the cached device list.
  */
 object GoogleCast {
   private val main = Handler(Looper.getMainLooper())
@@ -70,11 +70,31 @@ object GoogleCast {
       ?.takeIf { it.matches(Regex("^[A-Z0-9]{8}$")) }
       ?: CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID
 
-  /** Devices that can run the current receiver app (follows setReceiverAppId). */
-  private fun selector(): MediaRouteSelector =
-    cast?.mergedSelector ?: MediaRouteSelector.Builder()
-      .addControlCategory(CastMediaControlIntent.categoryForCast(CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID))
-      .build()
+  private val DEFAULT_APP = CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID
+  private var savedApp = DEFAULT_APP
+
+  private fun categoryFor(app: String) = CastMediaControlIntent.categoryForCast(app)
+
+  /**
+   * Discovery asks for both Google's receiver (every Cast device runs it) and
+   * Aura's screen, so a device that can't run Aura's screen yet (unpublished
+   * app, device not registered / not restarted) still shows up — it plays with
+   * Google's screen instead of vanishing.
+   */
+  private fun discoverySelector(): MediaRouteSelector =
+    MediaRouteSelector.Builder().addControlCategory(categoryFor(DEFAULT_APP)).apply {
+      if (savedApp != DEFAULT_APP) addControlCategory(categoryFor(savedApp))
+    }.build()
+
+  private fun anyCast(): MediaRouteSelector = MediaRouteSelector.Builder().addControlCategory(categoryFor(DEFAULT_APP)).build()
+
+  /** True / false when Aura's screen is set (can this device run it?), null when it isn't. */
+  private fun runsAuraScreen(route: MediaRouter.RouteInfo): Boolean? =
+    if (savedApp == DEFAULT_APP) null
+    else route.matchesSelector(MediaRouteSelector.Builder().addControlCategory(categoryFor(savedApp)).build())
+
+  /** Device list, refreshed on the main thread; read from any thread. */
+  @Volatile private var lastDevices: List<Map<String, Any?>> = emptyList()
 
   /** Switch between Aura's TV screen (an App ID) and the default receiver (empty). Ends a running session. */
   fun setReceiverAppId(context: Context, id: String?, done: (String) -> Unit) = main.post {
@@ -82,20 +102,13 @@ object GoogleCast {
     context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().apply {
       if (clean == null) remove(KEY_APP) else putString(KEY_APP, clean)
     }.apply()
-    val effective = clean ?: CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID
-    cast?.let { c ->
-      if (c.castOptions.receiverApplicationId != effective) {
-        try {
-          c.setReceiverApplicationId(effective)
-        } catch (e: Exception) {
-          // not on main thread / not ready: applies on next launch
-        }
-      }
-    }
-    // Re-register discovery for the new receiver's selector.
+    val effective = clean ?: DEFAULT_APP
+    savedApp = effective
+    useApp(effective)
+    // Re-register discovery for the new receiver.
     if (discovering) {
       router?.removeCallback(routes)
-      router?.addCallback(selector(), routes, MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN)
+      router?.addCallback(discoverySelector(), routes, MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN)
       publish()
     }
     done(effective)
@@ -105,6 +118,7 @@ object GoogleCast {
     main.post {
       if (cast != null) return@post done(null)
       val app = context.applicationContext
+      savedApp = receiverAppId(app)
       val gms = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(app)
       if (gms != ConnectionResult.SUCCESS) return@post done("Google Play services aren't available on this phone")
       try {
@@ -132,7 +146,7 @@ object GoogleCast {
 
   fun startDiscovery() = main.post {
     val r = router ?: return@post
-    if (!discovering) r.addCallback(selector(), routes, MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN)
+    if (!discovering) r.addCallback(discoverySelector(), routes, MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN)
     discovering = true
     publish()
   }
@@ -142,8 +156,9 @@ object GoogleCast {
     discovering = false
   }
 
+  /** Main thread only (MediaRouter). */
   private fun castRoutes(): List<MediaRouter.RouteInfo> =
-    selector().let { sel -> router?.routes?.filter { !it.isDefault && it.isEnabled && it.matchesSelector(sel) } ?: emptyList() }
+    anyCast().let { sel -> router?.routes?.filter { !it.isDefault && it.isEnabled && it.matchesSelector(sel) } ?: emptyList() }
 
   private fun describe(route: MediaRouter.RouteInfo): Map<String, Any?> {
     val dev = CastDevice.getFromBundle(route.extras)
@@ -157,13 +172,28 @@ object GoogleCast {
       "kind" to if (group) "group" else if (video) "tv" else "speaker",
       "connecting" to (route.connectionState == MediaRouter.RouteInfo.CONNECTION_STATE_CONNECTING),
       "selected" to route.isSelected,
+      "auraScreen" to runsAuraScreen(route),
     )
   }
 
-  fun devices(): List<Map<String, Any?>> = castRoutes().map { describe(it) }
+  /** Safe from the JS thread: the last list the main thread published. */
+  fun devices(): List<Map<String, Any?>> = lastDevices
 
+  /** Main thread only. */
   private fun publish() {
-    emit?.invoke("onCastDevices", mapOf("devices" to devices()))
+    lastDevices = castRoutes().map { describe(it) }
+    emit?.invoke("onCastDevices", mapOf("devices" to lastDevices))
+  }
+
+  /** Point the Cast framework at a receiver app (main thread; ends a running session if it changes). */
+  private fun useApp(app: String) {
+    val c = cast ?: return
+    if (c.castOptions.receiverApplicationId == app) return
+    try {
+      c.setReceiverApplicationId(app)
+    } catch (e: Exception) {
+      // not ready: the OptionsProvider picks the saved ID up on next launch
+    }
   }
 
   /* ───────────── Session ───────────── */
@@ -215,7 +245,11 @@ object GoogleCast {
   }
 
   private fun emitSession(state: String, s: CastSession, error: String? = null) {
-    emit?.invoke("onCastSession", mapOf("state" to state, "name" to s.castDevice?.friendlyName, "error" to error))
+    val app = try { s.applicationMetadata?.applicationId } catch (e: Exception) { null }
+    emit?.invoke(
+      "onCastSession",
+      mapOf("state" to state, "name" to s.castDevice?.friendlyName, "error" to error, "appId" to app, "auraScreen" to (app != null && app != DEFAULT_APP)),
+    )
   }
 
   private fun report() {
@@ -257,6 +291,8 @@ object GoogleCast {
       emitSession("connected", current)
       return@post done(null)
     }
+    // Aura's screen where the device can run it, Google's screen where it can't (yet).
+    useApp(if (runsAuraScreen(route) == true) savedApp else DEFAULT_APP)
     r.selectRoute(route)
     done(null)
   }
@@ -270,28 +306,35 @@ object GoogleCast {
     }
   }
 
-  fun load(o: Map<String, Any?>, done: (String?) -> Unit) = main.post {
+  /**
+   * Load a song. The request comes as JSON text: nested objects with nulls in
+   * them (lyrics, up next) don't survive Expo's Map<String, Any?> conversion.
+   */
+  fun load(json: String, done: (String?) -> Unit) = main.post {
     val c = session()?.remoteMediaClient ?: return@post done("Not connected to a Cast device")
-    val url = o["url"] as? String ?: return@post done("No URL")
+    val o = try { JSONObject(json) } catch (e: Exception) { return@post done("Bad load request") }
+    fun str(k: String): String? = if (o.isNull(k)) null else o.optString(k).takeIf { it.isNotEmpty() }
+    val url = str("url") ?: return@post done("No URL")
     val md = MediaMetadata(MediaMetadata.MEDIA_TYPE_MUSIC_TRACK).apply {
-      (o["title"] as? String)?.let { putString(MediaMetadata.KEY_TITLE, it) }
-      (o["artist"] as? String)?.let { putString(MediaMetadata.KEY_ARTIST, it) }
-      (o["album"] as? String)?.let { putString(MediaMetadata.KEY_ALBUM_TITLE, it) }
-      (o["art"] as? String)?.let { addImage(WebImage(Uri.parse(it))) }
+      str("title")?.let { putString(MediaMetadata.KEY_TITLE, it) }
+      str("artist")?.let { putString(MediaMetadata.KEY_ARTIST, it) }
+      str("album")?.let { putString(MediaMetadata.KEY_ALBUM_TITLE, it) }
+      str("art")?.let { addImage(WebImage(Uri.parse(it))) }
     }
-    val duration = (o["duration"] as? Number)?.toDouble() ?: 0.0
+    val duration = o.optDouble("duration", 0.0).takeIf { !it.isNaN() } ?: 0.0
     val info = MediaInfo.Builder(url)
       .setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
-      .setContentType(o["mime"] as? String ?: "audio/mpeg")
+      .setContentType(str("mime") ?: "audio/mpeg")
       .setMetadata(md)
       .apply { if (duration > 0) setStreamDuration((duration * 1000).toLong()) }
       // Palette, quality badge, synced lyrics and up-next for Aura's TV screen (ignored by the default receiver).
-      .apply { (o["customData"] as? Map<*, *>)?.let { setCustomData(jsonObject(it)) } }
+      .apply { o.optJSONObject("customData")?.let { setCustomData(it) } }
       .build()
+    val startAt = o.optDouble("startAt", 0.0).takeIf { !it.isNaN() } ?: 0.0
     val req = MediaLoadRequestData.Builder()
       .setMediaInfo(info)
-      .setAutoplay(o["autoplay"] as? Boolean ?: true)
-      .setCurrentTime((((o["startAt"] as? Number)?.toDouble() ?: 0.0) * 1000).toLong())
+      .setAutoplay(o.optBoolean("autoplay", true))
+      .setCurrentTime((startAt * 1000).toLong())
       .build()
     c.load(req).setResultCallback { r ->
       if (r.status.isSuccess) done(null) else done(r.status.statusMessage ?: "The Cast device couldn't play this file (${r.status.statusCode})")
@@ -307,15 +350,6 @@ object GoogleCast {
     }
   }
 
-  private fun toJson(v: Any?): Any? = when (v) {
-    null -> JSONObject.NULL
-    is Map<*, *> -> JSONObject().apply { v.forEach { (k, x) -> if (k is String) put(k, toJson(x)) } }
-    is List<*> -> JSONArray().apply { v.forEach { put(toJson(it)) } }
-    is Double -> if (v % 1.0 == 0.0 && kotlin.math.abs(v) < 9e15) v.toLong() else v
-    else -> v
-  }
-
-  private fun jsonObject(m: Map<*, *>): JSONObject = toJson(m) as JSONObject
 
   fun play() = main.post { client?.play() }
   fun pause() = main.post { client?.pause() }

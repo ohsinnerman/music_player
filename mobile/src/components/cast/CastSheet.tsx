@@ -190,6 +190,7 @@ function NowPlayingOn({ dev, onPhone }: { dev: Renderer; onPhone: () => void }) 
   const status = useCast((s) => s.status);
   const volume = useCast((s) => s.volume);
   const error = useCast((s) => s.error);
+  const screen = useCast((s) => s.screen);
   const track = useCurrentTrack();
   const look = deviceLook(dev);
   const Icon = look.icon;
@@ -212,7 +213,7 @@ function NowPlayingOn({ dev, onPhone }: { dev: Renderer; onPhone: () => void }) 
             {dev.name}
           </Text>
           <Text variant="footnote" tone="secondary" numberOfLines={1}>
-            {look.kind} · {dev.kind === 'gcast' ? 'original file' : 'original file, no transcoding'}
+            {look.kind} · {dev.kind === 'gcast' ? (screen === 'aura' ? 'Aura’s TV screen' : 'Google’s TV screen') : 'original file, no transcoding'}
           </Text>
         </View>
       </View>
@@ -298,7 +299,7 @@ function CastSheet({ close }: { close: () => void }) {
         <Row
           icon={look.icon}
           title={d.name}
-          subtitle={look.kind}
+          subtitle={d.gcAuraScreen === false ? `${look.kind} · Google’s screen (Aura’s not ready on it)` : look.kind}
           active={active?.udn === d.udn}
           busy={connecting === d.udn || (active?.udn === d.udn && (status === 'connecting' || status === 'buffering'))}
           onPress={() => void pick(d)}

@@ -1,6 +1,6 @@
 {
   "name": "aura-mobile",
-  "version": "1.2.3-beta",
+  "version": "1.2.4-beta",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo-google-fonts/instrument-serif": "^0.4.1",

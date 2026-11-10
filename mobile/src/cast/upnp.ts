@@ -14,6 +14,8 @@ export interface Renderer {
   gcKind?: 'tv' | 'speaker' | 'group';
   /** Google Cast route id. */
   gcId?: string;
+  /** Google Cast with Aura's TV screen set: can the device run it yet? */
+  gcAuraScreen?: boolean | null;
   udn: string;
   name: string;
   manufacturer?: string;

@@ -23,12 +23,17 @@ export interface GcDevice {
   kind: 'tv' | 'speaker' | 'group';
   connecting?: boolean;
   selected?: boolean;
+  /** With Aura's TV screen set: can this device run it? (null = Google's screen is set). */
+  auraScreen?: boolean | null;
 }
 
 export interface GcSessionEvent {
   state: 'connecting' | 'connected' | 'failed' | 'ended' | 'suspended';
   name?: string | null;
   error?: string | null;
+  /** Receiver app the session runs (1.2.4+). */
+  appId?: string | null;
+  auraScreen?: boolean;
 }
 
 export interface GcStatusEvent {
@@ -62,7 +67,8 @@ interface Native {
   gcDevices?(): GcDevice[];
   gcConnect?(id: string): Promise<boolean>;
   gcDisconnect?(): void;
-  gcLoad?(o: GcLoad): Promise<boolean>;
+  /** JSON of a GcLoad (nested nulls don't survive Expo's map conversion). */
+  gcLoad?(json: string): Promise<boolean>;
   gcSetReceiver?(appId: string): Promise<string>;
   gcReceiver?(): string;
   gcSend?(json: string): void;

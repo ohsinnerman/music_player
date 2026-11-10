@@ -1,7 +1,7 @@
-import { ExternalLink, MonitorPlay } from 'lucide-react-native';
-import { useState } from 'react';
+import { CircleCheck, CircleDashed, ExternalLink, MonitorPlay } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
 import { Linking, ScrollView, Share, useWindowDimensions, View } from 'react-native';
-import { setTvScreenAppId, tvScreenAppId } from '@/cast/session';
+import { setTvScreenAppId, tvScreenAppId, useCast, watchGoogleCast } from '@/cast/session';
 import { haptic } from '@/lib/haptics';
 import { useSettings } from '@/settings/store';
 import { GUTTER, makeStyles, radius, useColors } from '@/theme';
@@ -42,6 +42,11 @@ function TvScreenSheet({ close }: { close: () => void }) {
   const [id, setId] = useState(current);
   const [busy, setBusy] = useState(false);
   const valid = id.trim() === '' || /^[A-Za-z0-9]{8}$/.test(id.trim());
+  const tvs = useCast((s) => s.tvs);
+  useEffect(() => {
+    void watchGoogleCast(true);
+    return () => void watchGoogleCast(false);
+  }, []);
 
   const save = async (value: string) => {
     setBusy(true);
@@ -121,6 +126,29 @@ function TvScreenSheet({ close }: { close: () => void }) {
           <Button title={busy ? 'Saving…' : 'Use Aura’s screen'} onPress={() => void save(id)} disabled={busy || !valid || !id.trim() || id.trim() === current} />
         </View>
       </View>
+      {current && tvs.length ? (
+        <View style={{ gap: 10 }}>
+          <Text variant="label" tone="tertiary">
+            Your devices
+          </Text>
+          {tvs.map((d) => {
+            const ready = d.gcAuraScreen !== false;
+            return (
+              <View key={d.udn} style={styles.device}>
+                {ready ? <CircleCheck size={20} color={colors.success} /> : <CircleDashed size={20} color={colors.textTertiary} />}
+                <View style={{ flex: 1 }}>
+                  <Text variant="headline" numberOfLines={1}>
+                    {d.name}
+                  </Text>
+                  <Text variant="footnote" tone="secondary">
+                    {ready ? 'Shows Aura’s screen' : 'Not ready yet — shows Google’s screen. Check its serial number in the console, wait 15 minutes, then unplug it for 10 seconds.'}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      ) : null}
       <Text variant="footnote" tone="tertiary">
         Changing the screen ends a cast that’s playing. Works on every Chromecast and Google TV, including the first one from 2013; songs above 96 kHz play on DLNA receivers only.
       </Text>
@@ -133,5 +161,6 @@ const useStyles = makeStyles((colors) => ({
   preview: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: radius.md, backgroundColor: colors.fill },
   step: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   num: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.fillStrong, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  device: { flexDirection: 'row', gap: 12, alignItems: 'center', padding: 12, borderRadius: radius.md, backgroundColor: colors.fill },
   url: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8, padding: 10, borderRadius: radius.sm, backgroundColor: colors.fill },
 }));
