@@ -89,8 +89,9 @@ shifted under the glass and padded 24 dp on every side so the rim has real conte
 second box applies `Modifier.hazeGlass(HazeInput.Sources(state), style)`. The Glass slider maps onto it:
 Clear style at the liquid end, Regular past ~⅓, blur radius / refraction / dispersion / specular
 following `lens(level)`, and Aura's material tint taking it on to frosted and opaque. Settings →
-**Haze glass** switches back to Aura's own lens below. Requires Kotlin 2.4 (set through
-`expo-build-properties`, matching Haze's build).
+**Haze glass** switches back to Aura's own lens below. Requires Kotlin 2.3.20+ (set through
+`expo-build-properties`; Haze is built with 2.4, which a 2.3 compiler can read, and 2.3.20 is the newest
+version Expo's `pika` compiler plugin is published for).
 
 **Aura lens (fallback, Android 12+)** — `LiquidGlassView` in the same module, our own GPU lens.
 

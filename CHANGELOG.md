@@ -30,7 +30,7 @@ Focus: speed, stability, sound quality, receivers, library.
   - "Is it really lossless?" check: spots FLACs made from MP3/AAC, upsampled Hi-Res and 24-bit padded from 16-bit
 - Android Liquid Glass now drawn by Haze 2.1 (`haze-glass` + Material 3 Glass Style): refraction,
   depth blur, specular, edge light and chromatic aberration on every glass surface (Android 13+;
-  Settings → Haze glass switches back to Aura's own lens). The app now builds with Kotlin 2.4.
+  Settings → Haze glass switches back to Aura's own lens). The app now builds with Kotlin 2.3.20.
 - iOS ([docs/IOS.md](docs/IOS.md))
   - Apple's Liquid Glass (iOS 26, `UIGlassEffect`) on every glass surface, following the Glass slider; system blur on older iOS
   - Manual *iOS build* workflow: unsigned IPA from Xcode 26 on macOS 26, attached to the pre-release
