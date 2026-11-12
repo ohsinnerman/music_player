@@ -1,11 +1,8 @@
 # iOS
 
-Aura builds for iOS from the same code. On **iOS 26** every glass surface (tab bar, mini player,
-sheets, toasts, headers) uses Apple's own **Liquid Glass** (`UIGlassEffect` through
-`expo-glass-effect`'s `GlassView`) — real refraction, specular highlights and motion, drawn by the
-system. The Glass slider in Settings still works: the liquid end uses Apple's *clear* glass, the middle
-its *regular* glass, and the frosted → opaque end adds Aura's material tint on top. iOS 18–25 get the
-system blur (`UIVisualEffectView`) with Aura's tint, sheen and rim.
+Aura builds for iOS from the same code, with the same solid chrome as Android (`Surface`: layered dark
+colours, a hairline edge, soft shadows). Apple's Liquid Glass (`expo-glass-effect`) was used up to
+1.2.5-beta and removed in 1.2.6 along with the Android glass.
 
 ## Building
 

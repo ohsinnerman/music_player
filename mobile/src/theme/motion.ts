@@ -8,8 +8,8 @@ export const spring = {
   sheet: { damping: 28, stiffness: 240, mass: 1, overshootClamping: false } satisfies WithSpringConfig,
   /** Layout morphs (dock collapse, mode switches). */
   smooth: { damping: 30, stiffness: 200, mass: 1 } satisfies WithSpringConfig,
-  /** The liquid tab lens: a little stretch and settle. */
-  liquid: { damping: 18, stiffness: 260, mass: 0.9 } satisfies WithSpringConfig,
+  /** Indicators that travel (dock tab highlight, segmented controls): a little stretch and settle. */
+  bouncy: { damping: 18, stiffness: 260, mass: 0.9 } satisfies WithSpringConfig,
 } as const;
 
 export const timing = {

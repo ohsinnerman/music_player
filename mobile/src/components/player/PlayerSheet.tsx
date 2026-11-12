@@ -34,7 +34,7 @@ import { openAudioQuality } from '../quality/AudioQualitySheet';
 import { QualityBadge } from '../quality/QualityBadge';
 import { openSleepTimer } from '../sheets/SleepTimer';
 import { openTrackActions } from '../sheets/TrackActions';
-import { Glass } from '../ui/Glass';
+import { Surface } from '../ui/Surface';
 import { IconButton } from '../ui/IconButton';
 import { Marquee } from '../ui/Marquee';
 import { PressableScale } from '../ui/PressableScale';
@@ -265,7 +265,7 @@ export function PlayerSheet() {
     };
   });
 
-  const glassStyle = useAnimatedStyle(() => ({ opacity: 1 - clamp01(p.value * 2.2) }));
+  const miniSurfaceStyle = useAnimatedStyle(() => ({ opacity: 1 - clamp01(p.value * 2.2) }));
   const fullBgStyle = useAnimatedStyle(() => ({ opacity: clamp01(p.value * 1.8) }));
   const miniStyle = useAnimatedStyle(() => ({ opacity: 1 - clamp01(p.value * 5) }));
   const miniTextStyle = useAnimatedStyle(() => ({
@@ -331,8 +331,8 @@ export function PlayerSheet() {
     <>
       <Animated.View style={[styles.sheet, sheetStyle]}>
         {/* Mini look */}
-        <Animated.View style={[StyleSheet.absoluteFill, glassStyle]} pointerEvents="none">
-          <Glass radius={g.MINI_H / 2} intensity={50} style={StyleSheet.absoluteFill} tint={alpha(palette.dominant, 0.16)} />
+        <Animated.View style={[StyleSheet.absoluteFill, miniSurfaceStyle]} pointerEvents="none">
+          <Surface radius={g.MINI_H / 2} style={StyleSheet.absoluteFill} tint={alpha(palette.dominant, 0.16)} />
         </Animated.View>
 
         {/* Full look */}

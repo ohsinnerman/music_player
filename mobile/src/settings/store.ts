@@ -31,13 +31,8 @@ interface SettingsState {
   serverUrl: string;
   onboarded: boolean;
   haptics: boolean;
-  /** Glass material: 0 = liquid glass, 0.5 = frosted, 1 = opaque. Continuous. */
-  glass: number;
-  setGlass: (v: number) => void;
   /** Animated artwork background in the player. */
   livingBackground: boolean;
-  /** Android 13+: draw glass with Haze (Material 3 Glass) instead of Aura's own lens. */
-  hazeGlass: boolean;
   /** Let the server "listen" to a short clip of an imported song to identify it. */
   aiListen: boolean;
   recentSearches: string[];
@@ -45,7 +40,7 @@ interface SettingsState {
   setThemeMode: (m: ThemeMode) => void;
   setServerUrl: (url: string) => void;
   setOnboarded: (v: boolean) => void;
-  toggle: (key: 'haptics' | 'livingBackground' | 'aiListen' | 'hazeGlass') => void;
+  toggle: (key: 'haptics' | 'livingBackground' | 'aiListen') => void;
   pushRecentSearch: (q: string) => void;
   clearRecentSearches: () => void;
 }
@@ -56,10 +51,7 @@ export const useSettings = create<SettingsState>()(
       serverUrl: BUILD_API_URL,
       onboarded: false,
       haptics: true,
-      glass: 0,
-      setGlass: (v) => set({ glass: Math.min(1, Math.max(0, Math.round(v * 1000) / 1000)) }),
       livingBackground: true,
-      hazeGlass: true,
       aiListen: true,
       recentSearches: [],
       themeMode: 'system',
@@ -78,19 +70,16 @@ export const useSettings = create<SettingsState>()(
     {
       name: 'aura.settings',
       storage: persistStorage,
-      version: 2,
-      // v1 had an on/off "Reduce transparency"; v2 has the continuous glass material.
-      migrate: (persisted, version) => {
+      version: 3,
+      // v1 "Reduce transparency" and v2 "glass" / "hazeGlass" belonged to the glass chrome, removed in 1.2.6.
+      migrate: (persisted) => {
         const s = (persisted ?? {}) as Record<string, unknown>;
-        if (version < 2) {
-          s.glass = s.reduceTransparency ? 1 : 0;
-          delete s.reduceTransparency;
-        }
+        delete s.reduceTransparency;
+        delete s.glass;
+        delete s.hazeGlass;
         return s as unknown as SettingsState;
       },
-      partialize: ({ serverUrl, onboarded, haptics, glass, livingBackground, hazeGlass, aiListen, recentSearches, themeMode }) => ({
-        hazeGlass,
-        glass,
+      partialize: ({ serverUrl, onboarded, haptics, livingBackground, aiListen, recentSearches, themeMode }) => ({
         aiListen,
         themeMode,
         serverUrl,

@@ -1,6 +1,6 @@
 name: iOS build
 
-# Unsigned iOS build of the mobile app (Xcode 26, so iOS 26 Liquid Glass is in).
+# Unsigned iOS build of the mobile app (Xcode 26).
 # Manual only: macOS runners use 10× the Actions minutes of Linux on private repos.
 # Run it from the Actions tab ("Run workflow").
 #

@@ -4,12 +4,11 @@
 
 Expo SDK 58 · React Native 0.88 (New Architecture, Hermes) · Expo Router (file-based routes in
 `src/app`) · Reanimated 4 + react-native-worklets · Gesture Handler 3 (hook API) · Skia 2 ·
-expo-audio (ExoPlayer) · expo-file-system (SAF file/folder access) · expo-blur · expo-image · FlashList 2 · TanStack Query 5 · Zustand 5 ·
+expo-audio (ExoPlayer) · expo-file-system (SAF file/folder access) · expo-image · FlashList 2 · TanStack Query 5 · Zustand 5 ·
 SecureStore · Plus Jakarta Sans + Instrument Serif · lucide icons. Three local native modules (Kotlin, autolinked from `modules/`): `aura-audio-route` (audio output info —
 see [AUDIO_QUALITY.md](AUDIO_QUALITY.md) — and the player's output stage: float decoding, EQ, ReplayGain,
-downmix, bit-perfect USB — see [SOUND.md](SOUND.md)), `aura-liquid-glass` (GPU Liquid Glass lens — see
-[DESIGN.md](DESIGN.md#signature-components)) and `aura-cast` (DLNA discovery, control and media server —
-see [DLNA.md](DLNA.md)).
+downmix, bit-perfect USB — see [SOUND.md](SOUND.md)) and `aura-cast` (DLNA and Google Cast discovery,
+control and media server — see [DLNA.md](DLNA.md)).
 
 ## Navigation
 
@@ -20,19 +19,16 @@ src/app/_layout.tsx        Root: fonts, providers, BlurTargetView, Stack, + glob
   search  settings  auth  onboarding  device (songs on this phone)
 ```
 
-The visible tab bar is `<GlassDock/>`, rendered in the root layout *above* the navigator, so it floats
-over detail pages too and its blur samples whatever is underneath. `<PlayerSheet/>`, `<SheetHost/>`
+The visible tab bar is `<Dock/>`, rendered in the root layout *above* the navigator, so it floats
+over detail pages too. `<PlayerSheet/>`, `<SheetHost/>`
 and `<ToastHost/>` are siblings on top. Tapping a tab from a detail page pops back to the tabs first
 (`lib/nav.ts → goTab`).
-
-On Android, `expo-blur` needs a `BlurTargetView` wrapping the content to blur; it wraps the whole
-Stack and its ref is shared through `ChromeProvider`.
 
 ## State
 
 | Store | Persisted | Holds |
 |---|---|---|
-| `settings/store.ts` | AsyncStorage | server URL, onboarded, appearance (system/light/dark), glass material level (0–1), haptics, living background, listen-to-identify, recent searches |
+| `settings/store.ts` | AsyncStorage | server URL, onboarded, appearance (system/light/dark), haptics, living background, listen-to-identify, recent searches |
 | `local/store.ts` | AsyncStorage (+ art & lyrics files in the documents folder) | songs imported from the phone, their likes, identification status |
 | `auth/store.ts` | refresh token in SecureStore | status (`loading`/`guest`/`authed`), user |
 | `player/store.ts` | queue snapshot in AsyncStorage | queue, index, context, repeat, shuffle, playing/buffering; `clock` shared values |
@@ -61,14 +57,12 @@ quality reader + clip cutter, unit-tested), `import.ts` (file/folder pickers, bu
 Their likes stay on the device and they're kept out of server-synced playlists. Details:
 [LOCAL_MUSIC.md](LOCAL_MUSIC.md).
 
-## Glass material
+## Chrome
 
-`lib/glass.ts` exposes `glassLevel` (shared value, synced from `settings.glass` on launch and animated on
-changes) and the pure `material(level)` model in `lib/glassMaterial.ts` (unit-tested). `Glass` reads both;
-the slider (`components/settings/GlassSlider.tsx`) writes `glassLevel` directly while dragging. On
-Android 12+ `Glass` mounts the native `LiquidGlassNativeView` with `lens(level, intensity)` props
-(blur, refraction, dispersion, specular); tint/sheen/rim overlays stay in JS so they animate live.
-See [DESIGN.md → Glass material dial](DESIGN.md#signature-components).
+Every floating or framing piece of UI (dock, mini player, sheets, toasts, top bar, search field) is a
+`Surface` (`components/ui/Surface.tsx`) in one of four tones. Colours come from the theme tokens
+(`chrome`, `chromeBorder`, `chromeSheen`, `bar`, `scrimSurface`). See
+[DESIGN.md → Surface](DESIGN.md#signature-components).
 
 ## Theming
 

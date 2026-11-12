@@ -8,7 +8,6 @@ import { PlusJakartaSans_600SemiBold } from '@expo-google-fonts/plus-jakarta-san
 import { PlusJakartaSans_700Bold } from '@expo-google-fonts/plus-jakarta-sans/700Bold';
 import { PlusJakartaSans_800ExtraBold } from '@expo-google-fonts/plus-jakarta-sans/800ExtraBold';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { BlurTargetView } from 'expo-blur';
 import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, type ErrorBoundaryProps, ThemeProvider as NavThemeProvider, SplashScreen, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -19,15 +18,13 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { queryClient } from '@/api/queries';
 import { useAuth } from '@/auth/store';
-import { GlassDock } from '@/components/dock/GlassDock';
+import { Dock } from '@/components/dock/Dock';
 import { PlaybackClock } from '@/components/player/PlaybackClock';
 import { PlayerSheet } from '@/components/player/PlayerSheet';
 import { SheetHost } from '@/components/ui/Sheet';
 import { CastVolumeHud } from '@/components/cast/CastVolumeHud';
 import { ToastHost } from '@/components/ui/Toast';
-import { ChromeProvider, useBlurTarget } from '@/lib/chrome';
 import { installGlobalHandlers, logEvent, setDiagnosticsVersion } from '@/lib/diagnostics';
-import { startGlassSync } from '@/lib/glass';
 import { repairFileNames } from '@/local/import';
 import { useDeviceMusic } from '@/local/store';
 import { player } from '@/player/engine';
@@ -70,7 +67,6 @@ function useSettingsHydrated() {
 }
 
 function Shell() {
-  const target = useBlurTarget();
   const colors = useColors();
   const navTheme = useMemo(() => {
     const base = colors.scheme === 'dark' ? DarkTheme : DefaultTheme;
@@ -88,7 +84,7 @@ function Shell() {
     <NavThemeProvider value={navTheme}>
       <StatusBar style={colors.scheme === 'dark' ? 'light' : 'dark'} />
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
-        <BlurTargetView ref={target} style={{ flex: 1, backgroundColor: colors.bg }}>
+        <View style={{ flex: 1, backgroundColor: colors.bg }}>
           <Stack
             screenOptions={{
               headerShown: false,
@@ -105,8 +101,8 @@ function Shell() {
             <Stack.Screen name="search" options={{ animation: 'fade_from_bottom' }} />
             <Stack.Screen name="settings" options={{ animation: 'slide_from_bottom' }} />
           </Stack>
-        </BlurTargetView>
-        <GlassDock />
+        </View>
+        <Dock />
         <PlayerSheet />
         <SheetHost />
         <CastVolumeHud />
@@ -136,7 +132,6 @@ export default function RootLayout() {
     void player.restore();
   }, [hydrated]);
 
-  useEffect(() => (hydrated ? startGlassSync() : undefined), [hydrated]);
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => undefined);
@@ -149,9 +144,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
-            <ChromeProvider>
-              <Shell />
-            </ChromeProvider>
+            <Shell />
           </ThemeProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

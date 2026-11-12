@@ -1,8 +1,8 @@
-# Aura — a liquid-glass music player
+# Aura — a dark, artwork-first music player
 
 A streaming-style music app for Android (React Native / Expo) with a separate, hardened Node.js backend.
 Full-length tracks from independent artists, chart previews, synced lyrics, playlists and a library that
-follows you between devices — wrapped in an Apple-Music-meets-Spotify interface built from frosted glass,
+follows you between devices — wrapped in an Apple-Music-meets-Spotify interface built from solid layered dark chrome,
 living artwork and spring physics.
 
 <p align="center">
@@ -25,8 +25,8 @@ living artwork and spring physics.
 
 ## Highlights
 
-- **Real Liquid Glass on Android** — our own GPU lens (RenderNode + AGSL shader): edge refraction, chromatic dispersion and specular rims like iOS 26, redrawn only when the page under it changes. A Settings slider sweeps every glass surface from clear Liquid Glass through Frosted to Opaque, live under your finger.
-- **Floating glass dock** — floating tab dock with a sliding glass lens that shrinks to a single circle as you scroll (iOS 26 style), a glass mini player that **morphs** into the full player with a shared-element cover.
+- **Solid, layered dark chrome** — every floating piece (dock, mini player, sheets, toasts) is one `Surface`: a step lighter than the page, a hairline edge, a faint top light and a soft shadow. Looks the same on every phone and costs nothing to draw.
+- **Floating dock** — a tab pill with an ember highlight that slides and stretches between tabs, icons that pop as they light up, and a pill that shrinks to a single circle as you scroll; the mini player **morphs** into the full player with a shared-element cover.
 - **Living artwork** — the player background is the cover, blurred and slowly orbiting (Skia, rendered at ⅕ resolution for ~4% of the GPU cost), tinted by a palette extracted on-device.
 - **Synced lyrics** — LRCLIB lyrics that follow the song line by line, tap any line to jump there.
 - **Your own music, with lyrics** — add FLAC, WAV, MP3, M4A, OGG or Opus files or whole folders from your phone. Aura reads their tags, cover art and embedded lyrics itself, works out which song each file is (tags → file name → **Groq AI**, or by **listening** to a 20-second clip with Whisper) and fetches synced lyrics ([docs/LOCAL_MUSIC.md](docs/LOCAL_MUSIC.md)).
@@ -75,7 +75,7 @@ See [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
 - [Your own music + AI lyrics (Groq)](docs/LOCAL_MUSIC.md)
 - [Audio quality & signal path](docs/AUDIO_QUALITY.md)
 - [Sound: EQ, ReplayGain, 24-bit, bit-perfect USB](docs/SOUND.md)
-- [iOS build & Liquid Glass](docs/IOS.md)
+- [iOS build](docs/IOS.md)
 - [Play on TVs, speakers & receivers (DLNA, Google Cast, MusicCast)](docs/DLNA.md)
 - [Music providers / plugging in your own catalogue](docs/PROVIDERS.md)
 - [Deployment](docs/DEPLOYMENT.md)

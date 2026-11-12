@@ -1,6 +1,6 @@
 {
   "name": "aura-backend",
-  "version": "1.2.5-beta",
+  "version": "1.2.6-beta",
   "description": "Aura Music API — catalog, streaming, lyrics, auth and library",
   "main": "dist/index.js",
   "scripts": {

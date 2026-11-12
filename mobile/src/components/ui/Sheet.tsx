@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 import { create } from 'zustand';
 import { makeStyles, spring } from '@/theme';
-import { Glass } from './Glass';
+import { Surface } from './Surface';
 
 type Render = (close: () => void) => ReactNode;
 const useSheetStore = create<{ render: Render | null; open: boolean; id: number }>()(() => ({ render: null, open: false, id: 0 }));
@@ -95,10 +95,10 @@ export function SheetHost() {
       </Animated.View>
       <GestureDetector gesture={pan}>
         <Animated.View style={[styles.panelWrap, panelStyle]}>
-          <Glass radius={32} intensity={70} minTint={0.62} style={[styles.panel, { paddingBottom: insets.bottom + 16, maxHeight: height - insets.top - 24 }]}>
+          <Surface radius={32} style={[styles.panel, { paddingBottom: insets.bottom + 16, maxHeight: height - insets.top - 24 }]}>
             <View style={styles.handle} />
             {render(closeSheet)}
-          </Glass>
+          </Surface>
         </Animated.View>
       </GestureDetector>
     </View>

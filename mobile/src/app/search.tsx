@@ -14,7 +14,7 @@ import { GenreGrid } from '@/components/music/Shelves';
 import { TrackRow } from '@/components/music/TrackRow';
 import { Artwork } from '@/components/ui/Artwork';
 import { Chip } from '@/components/ui/Chip';
-import { Glass } from '@/components/ui/Glass';
+import { Surface } from '@/components/ui/Surface';
 import { IconButton } from '@/components/ui/IconButton';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { ListSkeleton } from '@/components/ui/Skeleton';
@@ -257,7 +257,7 @@ export default function SearchScreen() {
     <View style={styles.root}>
       <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
         <IconButton icon={ChevronLeft} label="Back" iconSize={26} onPress={() => router.back()} />
-        <Glass radius={radius.pill} variant="inline" style={styles.field}>
+        <Surface tone="inline" radius={radius.pill} style={styles.field}>
           <View style={styles.fieldRow}>
             <SearchIcon size={19} color={colors.textSecondary} strokeWidth={2.4} />
             <TextInput
@@ -282,7 +282,7 @@ export default function SearchScreen() {
             {search.isFetching && showResults ? <ActivityIndicator size="small" color={colors.textSecondary} /> : null}
             {text ? <IconButton icon={X} label="Clear search" size={32} iconSize={16} background={colors.fillStrong} onPress={() => setText('')} /> : null}
           </View>
-        </Glass>
+        </Surface>
       </View>
 
       {showResults ? (

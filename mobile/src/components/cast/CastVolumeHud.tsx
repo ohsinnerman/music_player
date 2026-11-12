@@ -5,7 +5,7 @@ import Animated, { FadeInUp, FadeOutUp, useAnimatedStyle, withTiming } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCast } from '@/cast/session';
 import { useColors } from '@/theme';
-import { Glass } from '../ui/Glass';
+import { Surface } from '../ui/Surface';
 import { Text } from '../ui/Text';
 
 /**
@@ -35,7 +35,7 @@ export function CastVolumeHud() {
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { paddingTop: insets.top + 8, alignItems: 'center' }]}>
       <Animated.View entering={FadeInUp.springify().damping(18)} exiting={FadeOutUp.duration(180)}>
-        <Glass radius={22} intensity={60} minTint={0.55} style={styles.pill}>
+        <Surface radius={22} style={styles.pill}>
           <View style={styles.row} accessibilityLiveRegion="polite" accessibilityLabel={`${name} volume ${v}%`}>
             <Icon size={18} color={colors.text} strokeWidth={2.4} />
             <View style={{ flex: 1, gap: 6 }}>
@@ -52,7 +52,7 @@ export function CastVolumeHud() {
               </View>
             </View>
           </View>
-        </Glass>
+        </Surface>
       </Animated.View>
     </View>
   );

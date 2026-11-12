@@ -6,7 +6,8 @@ import { create } from 'zustand';
 import { logEvent } from '@/lib/diagnostics';
 import { haptic } from '@/lib/haptics';
 import { useColors } from '@/theme';
-import { Glass } from './Glass';
+import { alpha } from '@/lib/palette';
+import { Surface } from './Surface';
 import { Text } from './Text';
 
 type Kind = 'info' | 'success' | 'error';
@@ -41,14 +42,14 @@ export function ToastHost() {
         const Icon = ICON[t.kind];
         return (
           <Animated.View key={t.id} entering={FadeInUp.springify().damping(18)} exiting={FadeOutUp.duration(180)} layout={LinearTransition} style={{ marginBottom: 8 }}>
-            <Glass radius={22} intensity={60} minTint={0.55} style={styles.toast}>
+            <Surface radius={22} style={styles.toast} tint={t.kind === 'error' ? alpha(colors.danger, 0.12) : t.kind === 'success' ? alpha(colors.success, 0.1) : undefined}>
               <View style={styles.row} accessibilityLiveRegion="polite">
                 <Icon size={18} color={t.kind === 'info' ? colors.text : t.kind === 'success' ? colors.success : colors.danger} strokeWidth={2.4} />
                 <Text variant="callout" numberOfLines={2} style={{ flexShrink: 1 }}>
                   {t.message}
                 </Text>
               </View>
-            </Glass>
+            </Surface>
           </Animated.View>
         );
       })}

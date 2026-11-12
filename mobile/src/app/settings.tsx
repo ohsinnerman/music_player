@@ -9,11 +9,9 @@ import { endpoints } from '@/api/endpoints';
 import { queryClient } from '@/api/queries';
 import { useAuth } from '@/auth/store';
 import { openCastSheet } from '@/components/cast/CastSheet';
-import { GlassControl } from '@/components/settings/GlassControl';
 import { Group, Row, Toggle } from '@/components/settings/Rows';
 import { openTvScreenSheet } from '@/components/cast/TvScreenSheet';
 import { castDiagnostics, gcastAvailable } from '@/cast/session';
-import { hazeGlassSupported } from '../../modules/aura-liquid-glass';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -305,11 +303,6 @@ export default function Settings() {
         <Group title="Look & feel">
           <Appearance />
           <View style={styles.sep} />
-          <GlassControl />
-          <View style={styles.sep} />
-          {hazeGlassSupported ? (
-            <Toggle label="Haze glass" hint="Material 3 Glass by Haze (refraction, depth, specular). Off uses Aura’s own lens." value={s.hazeGlass} onChange={() => s.toggle('hazeGlass')} />
-          ) : null}
           <Toggle label="Living artwork" hint="Animated, blurred cover behind the player" value={s.livingBackground} onChange={() => s.toggle('livingBackground')} />
           <View style={styles.sep} />
           <Toggle label="Haptics" value={s.haptics} onChange={() => s.toggle('haptics')} />

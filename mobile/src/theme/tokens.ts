@@ -2,8 +2,9 @@
  * Aura design tokens (both colour schemes).
  *
  * Direction: "content-first darkness" (album art is the only real colour,
- * per Spotify) wrapped in Apple-style Liquid Glass chrome. One warm accent,
- * used only for things you can act on. No violet anywhere.
+ * per Spotify) in solid, layered chrome: each level a step lighter, a hairline
+ * edge, a faint light along the top of floating pieces. One warm accent, used
+ * only for things you can act on. No violet anywhere.
  */
 export interface ColorTokens {
   scheme: 'dark' | 'light';
@@ -36,24 +37,26 @@ export interface ColorTokens {
   danger: string;
   warning: string;
 
-  glassTint: string;
-  glassTintSolid: string;
-  /** Opaque colour of the glass material; its opacity is driven by the Glass setting. */
-  glassBase: string;
-  glassBorder: string;
+  /** Floating chrome (dock, mini player, sheets, toasts): one step above the page. */
+  chrome: string;
+  chromeBorder: string;
+  /** The faint light along the top of floating chrome. */
+  chromeSheen: string;
+  /** Bars that content scrolls under. */
+  bar: string;
+  /** Dark see-through wash for controls over artwork. */
+  scrimSurface: string;
   scrim: string;
-  /** expo-blur tint name for this scheme. */
-  blurTint: 'systemUltraThinMaterialDark' | 'systemUltraThinMaterialLight';
 }
 
 /** Dark: content-first darkness. Album art is the only real colour. */
 export const darkColors: ColorTokens = {
   scheme: 'dark',
-  bg: '#08080B',
-  bgRaised: '#0E0E12',
-  surface: '#15151B',
-  surfaceHigh: '#1C1C24',
-  surfacePressed: '#24242E',
+  bg: '#09090C',
+  bgRaised: '#0F0F14',
+  surface: '#16161D',
+  surfaceHigh: '#1E1E27',
+  surfacePressed: '#272732',
   fill: 'rgba(255,255,255,0.07)',
   fillStrong: 'rgba(255,255,255,0.12)',
 
@@ -76,12 +79,12 @@ export const darkColors: ColorTokens = {
   danger: '#FF6B6B',
   warning: '#FFB13B',
 
-  glassTint: 'rgba(22,22,28,0.52)',
-  glassTintSolid: 'rgba(22,22,28,0.94)',
-  glassBase: '#17171D',
-  glassBorder: 'rgba(255,255,255,0.08)',
-  scrim: 'rgba(0,0,0,0.55)',
-  blurTint: 'systemUltraThinMaterialDark',
+  chrome: '#18181F',
+  chromeBorder: 'rgba(255,255,255,0.09)',
+  chromeSheen: 'rgba(255,255,255,0.055)',
+  bar: 'rgba(9,9,12,0.97)',
+  scrimSurface: 'rgba(0,0,0,0.42)',
+  scrim: 'rgba(0,0,0,0.6)',
 };
 
 /** Light: paper-white, ink text, the same ember accent (a touch deeper for contrast on white). */
@@ -114,12 +117,12 @@ export const lightColors: ColorTokens = {
   danger: '#E5484D',
   warning: '#D98A00',
 
-  glassTint: 'rgba(255,255,255,0.58)',
-  glassTintSolid: 'rgba(250,250,252,0.95)',
-  glassBase: '#F7F7F9',
-  glassBorder: 'rgba(10,10,20,0.08)',
+  chrome: '#FFFFFF',
+  chromeBorder: 'rgba(10,10,20,0.09)',
+  chromeSheen: 'rgba(255,255,255,0)',
+  bar: 'rgba(255,255,255,0.97)',
+  scrimSurface: 'rgba(0,0,0,0.38)',
   scrim: 'rgba(0,0,0,0.32)',
-  blurTint: 'systemUltraThinMaterialLight',
 };
 
 export const space = {

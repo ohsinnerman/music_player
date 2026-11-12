@@ -142,7 +142,6 @@ mobile/
   app.config.ts            Build-time config (API URL, cleartext, permissions, plugins)
   plugins/                 withReleaseSigning config plugin
   modules/aura-audio-route Local Expo module (Kotlin): output device + mixer rate for the signal path
-  modules/aura-liquid-glass Local Expo module (Kotlin + AGSL): GPU Liquid Glass lens over the page
   modules/aura-cast        Local Expo module (Kotlin): SSDP, LAN SOAP client, DLNA media server, FG service
   src/
     app/                   Routes (Expo Router): tabs, player-less detail pages, auth, settings
@@ -155,10 +154,10 @@ mobile/
                            identify / lyrics resolution, store — see LOCAL_MUSIC.md
     settings/              persisted settings (incl. appearance), server URL validation
     components/
-      ui/                  Glass, Text, PressableScale, Sheet, Toast, TextField, TopBar…
+      ui/                  Surface, Text, PressableScale, Sheet, Toast, TextField, TopBar…
       music/               TrackRow, MediaCard, HeroCarousel, Shelves, CollectionScreen…
       player/              PlayerSheet, LivingBackground, Scrubber, Controls, LyricsView, QueueView
-      dock/                GlassDock + shared geometry
+      dock/                Dock + shared geometry
       sheets/              Track actions, playlist picker, create playlist
       quality/             QualityBadge, AudioQualitySheet
     lib/                   palette extraction, chrome (shared animation state), format, nav, haptics,

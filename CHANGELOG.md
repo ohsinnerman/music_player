@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.2.6-beta — 2026-11-12
+
+Liquid glass removed; solid, animated dark chrome instead.
+
+- **Removed all liquid glass:** Haze Material 3 glass, Aura's own GPU lens (`aura-liquid-glass` module),
+  Apple's Liquid Glass on iOS (`expo-glass-effect`), the expo-blur backdrop, the Settings → Glass slider
+  and the Haze toggle. Saved settings drop the old glass values on update.
+- **New `Surface`** for the dock, mini player, sheets, toasts, cast volume overlay, top bar, search field
+  and sign-in card: solid layered colours from the theme, hairline edge, a faint top light and a soft
+  shadow on floating pieces. Same look on every phone, nothing to blur.
+- **Dock:** an ember highlight slides (with a small stretch) between tabs; the active icon cross-fades to
+  ember with a pop and its label brightens; search lights up ember while open.
+- **Toasts** carry a green / red wash for success / error.
+- **Palette:** dark layers re-stepped (`#09090C` → `#0F0F14` → `#16161D` → `#1E1E27`, chrome `#18181F`)
+  so floating pieces separate cleanly from the page; light theme gets white chrome with an ink hairline.
+
 ## 1.2.5-beta — 2026-11-10
 
 Google Cast, after the first good run of Aura's TV screen on a 2013 Chromecast.

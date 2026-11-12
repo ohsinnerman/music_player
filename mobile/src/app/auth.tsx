@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '@/api/client';
 import { useAuth } from '@/auth/store';
 import { Button } from '@/components/ui/Button';
-import { Glass } from '@/components/ui/Glass';
+import { Surface } from '@/components/ui/Surface';
 import { IconButton } from '@/components/ui/IconButton';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
@@ -27,7 +27,7 @@ function Segmented({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void
   const [w, setW] = useState(0);
   const lens = useAnimatedStyle(() => ({ transform: [{ translateX: x.value * (w / 2) }], width: w / 2 - 4 }));
   const pick = (m: Mode) => {
-    x.value = withSpring(m === 'signup' ? 0 : 1, spring.liquid);
+    x.value = withSpring(m === 'signup' ? 0 : 1, spring.bouncy);
     onChange(m);
   };
   return (
@@ -109,7 +109,7 @@ export default function AuthScreen() {
             {mode === 'signup' ? 'One account for your likes, playlists and history — on every device.' : 'Sign in to pick up where you left off.'}
           </Text>
 
-          <Glass variant="inline" radius={radius.xl} style={styles.card}>
+          <Surface tone="inline" radius={radius.xl} style={styles.card}>
             <View style={{ padding: 18, gap: 16 }}>
               <Segmented
                 mode={mode}
@@ -159,7 +159,7 @@ export default function AuthScreen() {
               ) : null}
               <Button title={mode === 'signup' ? 'Create account' : 'Sign in'} size="lg" onPress={submit} loading={busy} style={{ marginTop: 4 }} />
             </View>
-          </Glass>
+          </Surface>
 
           <Text variant="footnote" tone="tertiary" align="center" style={{ marginTop: 20 }}>
             Passwords are hashed with Argon2id on your server and never stored in the app.

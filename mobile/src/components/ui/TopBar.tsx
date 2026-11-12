@@ -5,13 +5,13 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { type SharedValue, interpolate, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { makeStyles, useColors } from '@/theme';
-import { Glass } from './Glass';
+import { Surface } from './Surface';
 import { PressableScale } from './PressableScale';
 import { Text } from './Text';
 
 /**
- * Floating top bar for detail pages: a glass back button that's always
- * there, and a frosted bar + title that fade in once you scroll past the hero.
+ * Floating top bar for detail pages: a round back button that's always
+ * there, and a solid bar + title that fade in once you scroll past the hero.
  */
 export function TopBar({ scrollY, title, threshold = 260, right }: { scrollY: SharedValue<number>; title: string; threshold?: number; right?: ReactNode }) {
   const colors = useColors();
@@ -27,13 +27,13 @@ export function TopBar({ scrollY, title, threshold = 260, right }: { scrollY: Sh
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { paddingTop: insets.top, height: insets.top + 56 }]}>
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, barStyle]}>
-        <Glass variant="inline" radius={0} intensity={50} rim={false} style={StyleSheet.absoluteFill} />
+        <Surface tone="bar" radius={0} style={StyleSheet.absoluteFill} />
         <View style={styles.hairline} />
       </Animated.View>
       <View style={styles.row} pointerEvents="box-none">
         <PressableScale onPress={() => (router.canGoBack() ? router.back() : router.navigate('/'))} scaleTo={0.88} hapticOnPress="tap" accessibilityLabel="Back" style={styles.back}>
           <Animated.View style={[StyleSheet.absoluteFill, btnBg]}>
-            <Glass radius={20} intensity={40} variant="inline" style={StyleSheet.absoluteFill} />
+            <Surface tone="scrim" radius={20} style={StyleSheet.absoluteFill} />
           </Animated.View>
           <View>
             <ChevronLeft size={26} color={colors.text} strokeWidth={2.4} style={{ marginLeft: -2 }} />

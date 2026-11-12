@@ -4,8 +4,8 @@ import { useColors } from '@/theme';
 
 /**
  * Tabs keep each tab's scroll position and state alive. The visible tab bar
- * is the custom <GlassDock/> rendered in the root layout, so it can float
- * over detail screens too and blur everything beneath it.
+ * is the custom <Dock/> rendered in the root layout, so it can float
+ * over detail screens too.
  */
 export default function TabsLayout() {
   const colors = useColors();

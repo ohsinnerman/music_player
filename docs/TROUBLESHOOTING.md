@@ -30,12 +30,6 @@ Allow notifications for Aura (Android 13+: Settings → Apps → Aura → Notifi
 on some phones (Xiaomi/Poco, Oppo, Vivo…) kill background apps — set Aura's battery usage to
 "No restrictions".
 
-### Glass looks flat / no blur
-Real blur needs Android 12+; the refracting Liquid Glass lens needs Android 13+. Older versions get a
-frosted tint. Also check **Settings → Glass** isn't
-set to *Opaque* (the slider's right end). Glass over the open full player is always frosted (Android can
-only blur content inside the app's blur target).
-
 ### Signed out unexpectedly
 Refresh tokens rotate; if an old token is replayed (e.g. restored from another device) the server
 revokes the session as a safety measure. Sign in again. Changing your password signs out every

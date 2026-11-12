@@ -3,11 +3,12 @@ import { Compass, House, Library, type LucideIcon, Search } from 'lucide-react-n
 import { memo, useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { create } from 'zustand';
-import Animated, { interpolate, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { interpolate, interpolateColor, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { chrome } from '@/lib/chrome';
 import { goTab } from '@/lib/nav';
+import { alpha } from '@/lib/palette';
 import { fonts, makeStyles, spring, useColors } from '@/theme';
-import { Glass } from '../ui/Glass';
+import { Surface } from '../ui/Surface';
 import { PressableScale } from '../ui/PressableScale';
 import { useDockGeometry } from './geometry';
 
@@ -34,20 +35,38 @@ const TabButton = memo(function TabButton({ i, active, onPress, width }: { i: nu
   const styles = useStyles();
   const t = TABS[i]!;
   const Icon = t.icon;
+  // 0 → 1 as the tab becomes active: the ember icon fades in over the grey one with a small pop.
+  const on = useSharedValue(active ? 1 : 0);
+  const pop = useSharedValue(0);
+  useEffect(() => {
+    on.value = withTiming(active ? 1 : 0, { duration: 220 });
+    if (active) pop.value = withSequence(withTiming(1, { duration: 120 }), withSpring(0, spring.bouncy));
+  }, [active, on, pop]);
   const style = useAnimatedStyle(() => {
     const c = chrome.dockCollapsed.value;
     // Collapsed: only the active tab stays, centred in the circle.
     return { opacity: active ? 1 : 1 - Math.min(1, c * 2.5) };
   });
+  const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: 1 + pop.value * 0.14 }, { translateY: -pop.value * 2 }] }));
+  const offStyle = useAnimatedStyle(() => ({ opacity: 1 - on.value }));
+  const onStyle = useAnimatedStyle(() => ({ opacity: on.value }));
   const labelStyle = useAnimatedStyle(() => ({
     opacity: 1 - Math.min(1, chrome.dockCollapsed.value * 3),
     height: interpolate(chrome.dockCollapsed.value, [0, 1], [14, 0], 'clamp'),
+    color: interpolateColor(on.value, [0, 1], [colors.textSecondary, colors.text]),
   }));
   return (
     <Animated.View style={[{ width }, style]}>
       <PressableScale onPress={onPress} scaleTo={0.9} hapticOnPress="tap" accessibilityRole="tab" accessibilityLabel={t.label} accessibilityState={{ selected: active }} style={styles.tab}>
-        <Icon size={23} color={active ? colors.text : colors.textSecondary} strokeWidth={active ? 2.4 : 2} />
-        <Animated.Text numberOfLines={1} style={[styles.tabLabel, { color: active ? colors.text : colors.textSecondary }, labelStyle]}>
+        <Animated.View style={[styles.icon, iconStyle]}>
+          <Animated.View style={[StyleSheet.absoluteFill, styles.center, offStyle]}>
+            <Icon size={23} color={colors.textSecondary} strokeWidth={2} />
+          </Animated.View>
+          <Animated.View style={[StyleSheet.absoluteFill, styles.center, onStyle]}>
+            <Icon size={23} color={colors.accent} strokeWidth={2.4} />
+          </Animated.View>
+        </Animated.View>
+        <Animated.Text numberOfLines={1} style={[styles.tabLabel, labelStyle]}>
           {t.label}
         </Animated.Text>
       </PressableScale>
@@ -56,12 +75,12 @@ const TabButton = memo(function TabButton({ i, active, onPress, width }: { i: nu
 });
 
 /**
- * Floating Liquid-Glass dock (iOS 26 style): a tab pill with a sliding
- * glass lens, a separate search button, and room above for the mini player.
- * Scrolling down shrinks the pill to a single circle and the mini player
- * slides down beside it.
+ * Floating dock: a solid tab pill with an ember highlight that slides (and
+ * stretches a little) to the active tab, a separate search button, and room
+ * above for the mini player. Scrolling down shrinks the pill to a single
+ * circle and the mini player slides down beside it.
  */
-export function GlassDock() {
+export function Dock() {
   const colors = useColors();
   const styles = useStyles();
   const g = useDockGeometry();
@@ -77,9 +96,9 @@ export function GlassDock() {
   const lensX = useSharedValue(active);
   const stretch = useSharedValue(0);
   useEffect(() => {
-    lensX.value = withSpring(active, spring.liquid);
-    // A brief horizontal stretch while the lens travels: the "liquid" part.
-    stretch.value = withSequence(withTiming(1, { duration: 110 }), withSpring(0, spring.liquid));
+    lensX.value = withSpring(active, spring.bouncy);
+    // A brief horizontal stretch while the highlight travels.
+    stretch.value = withSequence(withTiming(1, { duration: 110 }), withSpring(0, spring.bouncy));
     chrome.dockCollapsed.value = withSpring(0, spring.smooth);
   }, [active, lensX, stretch, path]);
 
@@ -123,9 +142,9 @@ export function GlassDock() {
   return (
     <Animated.View pointerEvents={hidden ? 'none' : 'box-none'} style={[StyleSheet.absoluteFill, wrapStyle]}>
       <Animated.View style={[styles.pillWrap, { left: g.M, top: g.tabY, height: g.TAB_H }, pillStyle]}>
-        <Glass radius={g.TAB_H / 2} intensity={45} style={StyleSheet.absoluteFill} />
+        <Surface radius={g.TAB_H / 2} style={StyleSheet.absoluteFill} />
         <View style={[StyleSheet.absoluteFill, { overflow: 'hidden', borderRadius: g.TAB_H / 2 }]}>
-          <Animated.View style={[styles.lens, { height: g.TAB_H - 8 }, lensStyle]} />
+          <Animated.View style={[styles.lens, { height: g.TAB_H - 8, backgroundColor: colors.accentSoft, borderColor: alpha(colors.accent, 0.32) }, lensStyle]} />
           <Animated.View style={[styles.row, rowStyle]}>
             {TABS.map((t, i) => (
               <TabButton
@@ -148,18 +167,18 @@ export function GlassDock() {
 
       <Animated.View style={[styles.searchWrap, { left: g.W - g.M - g.circle, top: g.tabY, width: g.circle, height: g.circle }, searchStyle]}>
         <PressableScale onPress={() => router.push('/search')} scaleTo={0.9} hapticOnPress="tap" accessibilityLabel="Search" style={StyleSheet.absoluteFill}>
-          <Glass radius={g.circle / 2} intensity={45} style={[StyleSheet.absoluteFill, styles.center]}>
+          <Surface radius={g.circle / 2} style={[StyleSheet.absoluteFill, styles.center]}>
             <View>
-              <Search size={23} color={path.startsWith('/search') ? colors.text : colors.textSecondary} strokeWidth={2.2} />
+              <Search size={23} color={path.startsWith('/search') ? colors.accent : colors.textSecondary} strokeWidth={2.2} />
             </View>
-          </Glass>
+          </Surface>
         </PressableScale>
       </Animated.View>
     </Animated.View>
   );
 }
 
-const useStyles = makeStyles((colors) => ({
+const useStyles = makeStyles(() => ({
   pillWrap: { position: 'absolute', borderRadius: 999 },
   row: { flexDirection: 'row', paddingHorizontal: 4, height: '100%', alignItems: 'center' },
   lens: {
@@ -167,11 +186,10 @@ const useStyles = makeStyles((colors) => ({
     top: 4,
     left: 0,
     borderRadius: 999,
-    backgroundColor: colors.fillStrong,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.hairlineLight,
+    borderWidth: StyleSheet.hairlineWidth * 2,
   },
   tab: { alignItems: 'center', justifyContent: 'center', height: 54, gap: 3 },
+  icon: { width: 26, height: 26 },
   tabLabel: { fontFamily: fonts.semibold, fontSize: 10.5, letterSpacing: 0.1 },
   searchWrap: { position: 'absolute' },
   center: { alignItems: 'center', justifyContent: 'center' },

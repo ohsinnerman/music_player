@@ -8,7 +8,7 @@ import type { CatalogItem } from '@/api/types';
 import { art, artistNames } from '@/lib/format';
 import { openItem } from '@/lib/nav';
 import { GUTTER, makeStyles, radius } from '@/theme';
-import { Glass } from '../ui/Glass';
+import { Surface } from '../ui/Surface';
 import { PressableScale } from '../ui/PressableScale';
 import { Text } from '../ui/Text';
 
@@ -58,14 +58,14 @@ const Card = memo(function Card({ item, index, x, width, gap }: { item: HeroItem
               <Text variant="callout" color="rgba(255,255,255,0.78)" numberOfLines={1} style={{ flex: 1 }}>
                 {subtitle}
               </Text>
-              <Glass radius={22} intensity={30} variant="inline" style={styles.playPill}>
+              <Surface tone="scrim" radius={22} style={styles.playPill}>
                 <View style={styles.playInner}>
                   <Play size={14} color="#fff" fill="#fff" />
                   <Text variant="headline" color="#fff">
                     Open
                   </Text>
                 </View>
-              </Glass>
+              </Surface>
             </View>
           </View>
           <View pointerEvents="none" style={styles.edge} />
